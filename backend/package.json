@@ -1,0 +1,49 @@
+{
+  "name": "api-musicas",
+  "version": "1.0.0",
+  "description": "api para organizacao de musicas/playlists",
+  "homepage": "https://github.com/pedropiasecki/api-musicas#readme",
+  "bugs": {
+    "url": "https://github.com/pedropiasecki/api-musicas/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pedropiasecki/api-musicas.git"
+  },
+  "license": "ISC",
+  "author": "pedropiasecki",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --inspect -r tsconfig-paths/register --transpile-only --ignore-watch node_module ./src/shared/http/server.ts",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "migration:run": "npm run typeorm -- migration:run -d src/shared/typeorm/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate src/shared/typeorm/migrations/CreateMusics -d src/shared/typeorm/data-source.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "celebrate": "^12.1.2",
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "express-async-errors": "^3.1.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "ts-node-dev": "^2.0.0",
+    "typeorm": "^0.3.28",
+    "typescript": "^6.0.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/joi": "^17.2.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.5.0",
+    "paths": "^0.1.1",
+    "tsconfig": "^7.0.0",
+    "tsconfig-paths": "^4.2.0"
+  }
+}

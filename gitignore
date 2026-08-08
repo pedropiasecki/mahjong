@@ -1,0 +1,33 @@
+# Dependências
+node_modules/
+
+# Build / output compilado
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Cobertura de testes
+coverage/

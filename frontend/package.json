@@ -1,0 +1,9 @@
+{
+  "name": "mahjong-frontend",
+  "version": "1.0.0",
+  "description": "UI do mahjong em HTML + CSS + JavaScript puro, sem framework e sem build.",
+  "type": "module",
+  "scripts": {
+    "serve": "npx serve ."
+  }
+}
