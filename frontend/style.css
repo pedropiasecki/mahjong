@@ -68,8 +68,8 @@ main {
 /* Mantém o estilo base da pedra */
 .stone {
     position: absolute;
-    width: 32px;
-    height: 42px;
+    width: 48px; /* Largura da pedra deve seguir Title W*/
+    height: 63px; /* Altura da pedra deve seguir Title h */
     background: #f4ead0;
     border: 1px solid #8a7a5c;
     border-radius: 4px;

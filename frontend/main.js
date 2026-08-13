@@ -35,9 +35,10 @@ const timeEl = document.querySelector('#time');
 const statusEl = document.querySelector('#status');
 const comboEl = document.querySelector('#combo');
 
-const TILE_W = 34;
-const TILE_H = 44;
-const LAYER_OFFSET = 6;
+// --- Ajuste os tamanhos aqui ---
+const TILE_W = 51;          // Exemplo: aumentado de 34 para 51 (1.5x)
+const TILE_H = 66;          // Exemplo: aumentado de 44 para 66 (1.5x)
+const LAYER_OFFSET = 9;     // Exemplo: aumentado de 6 para 9 (1.5x)
 
 // --- Renderização com SVG dos Tiles ---
 function render() {
@@ -56,7 +57,11 @@ function render() {
             el.classList.add('selected');
         }
 
-        // Posicionamento 3D
+        // 1. Aplica o tamanho dinâmico direto na pedra
+        el.style.width = `${TILE_W}px`;
+        el.style.height = `${TILE_H}px`;
+
+        // 2. Posicionamento 3D ajustado com base nos novos tamanhos
         el.style.left = `${stone.x * (TILE_W / 2) - stone.z * LAYER_OFFSET}px`;
         el.style.top = `${stone.y * (TILE_H / 2) - stone.z * LAYER_OFFSET}px`;
         el.style.zIndex = `${stone.z * 100 + stone.y}`;
@@ -125,7 +130,7 @@ game.click = (stone) => {
 async function initTilesetAndStart() {
     try {
         // Seleciona o tileset desejado
-        const selectedTileset = KyodaiTileSets[9]; 
+        const selectedTileset = KyodaiTileSets[0]; 
 
         console.log('Carregando tileset:', selectedTileset.source);
         
