@@ -212,11 +212,36 @@ export const KyodaiTileSets = [
         name: 'Age of Empires II: Age of Kings',
         author: 'vikinganswerlady',
         source: 'https://web.archive.org/web/20030919052725/http://www.vikinganswerlady.com/kyodai/AOEII.jpg'
+    },
+    {
+        name: 'Local Sample Image',
+        author: 'Local Assets',
+        source: 'assets/images/imagem.jpg'
+    },
+    {
+        name: 'Teste',
+        author: 'eu',
+        source: 'engine/assets/images/imagem.jpg'
     }
 ];
+
+function resolveImageUrl(url) {
+    if (!url) return '';
+    // If it's a full URL (http:// or https://) or base64 (data:), return as-is
+    if (/^(https?:|data:|\/\/)/i.test(url)) {
+        return url;
+    }
+    // For local relative paths like 'assets/images/imagem.jpg', ensure clean format
+    return url.startsWith('/') ? url : '/' + url;
+}
+
 async function loadImage(tileSetUrl) {
     return new Promise((resolve, reject) => {
         const newImg = new Image();
+        // Support cross-origin only for external HTTP/HTTPS links
+        if (/^https?:/i.test(tileSetUrl)) {
+            newImg.crossOrigin = 'anonymous';
+        }
         newImg.addEventListener('load', () => {
             resolve(newImg);
         });
@@ -224,9 +249,10 @@ async function loadImage(tileSetUrl) {
             console.error(error);
             reject(new Error(`Image ${tileSetUrl} could not be loaded.`));
         });
-        newImg.src = tileSetUrl;
+        newImg.src = resolveImageUrl(tileSetUrl);
     });
 }
+
 export function buildTiles(tiles, imageID, rowHeight, colWidth) {
     let result = '';
     for (const [nr, row] of tiles.entries()) {
@@ -238,6 +264,7 @@ export function buildTiles(tiles, imageID, rowHeight, colWidth) {
     }
     return result;
 }
+
 function escapeAttributeValue(value) {
     return value
         .replace(/&/g, '&amp;')
@@ -246,6 +273,7 @@ function escapeAttributeValue(value) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 }
+
 export async function buildKyodaiSVG(tileSetUrl) {
     if (!tileSetUrl) {
         return '<svg><defs></defs></svg>';
@@ -263,13 +291,15 @@ export async function buildKyodaiSVG(tileSetUrl) {
         range(10, 9).map(nr => `g${nr}`),
         range(1, 9).map(nr => `e${nr}`)
     ].map(row => row.map(id => `t_${id}`));
+
+    const finalUrl = resolveImageUrl(tileSetUrl);
     const image = await loadImage(tileSetUrl);
     const rowHeight = image.height / 5;
     const colWidth = image.width / 9;
     const imageID = hashCode(tileSetUrl);
     const extraID = hashCode('kyodai-extra');
     return `<svg><defs>
-<image id="${imageID}" xlink:href="${escapeAttributeValue(tileSetUrl)}" x="0" y="0" height="${image.height}" width="${image.width}"/>
+<image id="${imageID}" xlink:href="${escapeAttributeValue(finalUrl)}" x="0" y="0" height="${image.height}" width="${image.width}"/>
 <image id="${extraID}" xlink:href="/assets/svg/kyodai-extra.png" x="0" y="0" height="300" width="675"/>
 ${buildTiles(kyodai, imageID, rowHeight, colWidth)}
 ${buildTiles(kyodaiExtra, extraID, 100, 75)}
