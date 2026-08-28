@@ -130,7 +130,7 @@ game.click = (stone) => {
 async function initTilesetAndStart() {
     try {
         // Seleciona o tileset desejado
-        const selectedTileset = KyodaiTileSets[0]; 
+        const selectedTileset = KyodaiTileSets[42]; 
 
         console.log('Carregando tileset:', selectedTileset.source);
         

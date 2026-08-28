@@ -214,11 +214,6 @@ export const KyodaiTileSets = [
         source: 'https://web.archive.org/web/20030919052725/http://www.vikinganswerlady.com/kyodai/AOEII.jpg'
     },
     {
-        name: 'Local Sample Image',
-        author: 'Local Assets',
-        source: 'assets/images/imagem.jpg'
-    },
-    {
         name: 'Teste',
         author: 'eu',
         source: 'engine/assets/images/imagem.jpg'
