@@ -25,10 +25,12 @@ recarregar a página.
 ## Rodar o frontend
 
 ```bash
+docker compose up -d (raiz do projeto)
+criar banco mahjong_db (postgres)
 cd backend
 npm i
 npm run migration:run
 npm run dev
 ```
 
-Ainda é só o esqueleto de outra api
+Testes no insomnia no arquivo na raiz do projeto
