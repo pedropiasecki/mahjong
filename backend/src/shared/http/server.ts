@@ -1,9 +1,9 @@
-import express, { NextFunction, Request, Response, response } from 'express';
+import 'express-async-errors';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import routes from '../routes';
 import AppError from '@shared/errors/AppError';
 import { AppDataSource } from '@shared/typeorm/data-source';
-import 'express-async-errors';
 import { errors } from 'celebrate';
 import uploadConfig from '@config/upload';
 
@@ -12,6 +12,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/files', express.static(uploadConfig.directory));
+
 app.use(routes);
 app.use(errors());
 
@@ -21,20 +22,21 @@ app.use((error: Error, request: Request, response: Response, next: NextFunction)
             status: 'error',
             message: error.message
         });
-        return response.status(500).json({
-            status: 'error',
-            message: 'Internal Server Error'
-        });
     }
+
+    return response.status(500).json({
+        status: 'error',
+        message: 'Internal Server Error'
+    });
 });
 
 AppDataSource.initialize()
-.then(()=>{
+.then(async() => {
     console.log("Data Source Initialized!");
     app.listen(3333, () => {
         console.log('Server started on port 3333!');
-    })
+    });
 })
-.catch((err)=>{
-    console.log("Error during Data Source Initialized", err);
+.catch((err) => {
+    console.error("Error during Data Source initialization", err);
 });

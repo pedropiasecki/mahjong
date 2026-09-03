@@ -1,26 +1,24 @@
 {
-  "name": "api-musicas",
+  "name": "mahjong",
   "version": "1.0.0",
-  "description": "api para organizacao de musicas/playlists",
-  "homepage": "https://github.com/pedropiasecki/api-musicas#readme",
-  "bugs": {
-    "url": "https://github.com/pedropiasecki/api-musicas/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pedropiasecki/api-musicas.git"
-  },
+  "description": "api/sistema para mahjong",
   "license": "ISC",
-  "author": "pedropiasecki",
+  "contributors": [
+    "Felipe Matis",
+    "Eduardo Dias",
+    "Gustavo Lima",
+    "Pedro Piasecki"
+  ],
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --inspect -r tsconfig-paths/register --transpile-only --ignore-watch node_module ./src/shared/http/server.ts",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:run": "npm run typeorm -- migration:run -d src/shared/typeorm/data-source.ts",
-    "migration:generate": "npm run typeorm -- migration:generate src/shared/typeorm/migrations/CreateMusics -d src/shared/typeorm/data-source.ts"
+    "migration:generate": "npm run typeorm -- migration:generate -d src/shared/typeorm/data-source.ts"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "celebrate": "^12.1.2",
     "cors": "^2.8.6",
@@ -35,6 +33,7 @@
     "typescript": "^6.0.2"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
