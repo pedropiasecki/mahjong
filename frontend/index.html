@@ -16,8 +16,23 @@
 	</header>
 
 	<main>
-		<div id="board"></div>
-	</main>
+    <div class="game-area">
+        <div id="board"></div>
+
+        <div class="game-controls">
+            <button id="reset-button" type="button">
+                Resetar
+            </button>
+
+            <select id="difficulty">
+                <option selected disabled>Selecionar dificuldade</option>
+                <option value="normal">Normal</option>
+                <option value="dificil">Difícil</option>
+                <option value="extremo">Extremo</option>
+            </select>
+        </div>
+    </div>
+</main>
 
 	<script type="module" src="./main.js"></script>
 </body>
