@@ -54,7 +54,7 @@ main {
 #board {
 	position: relative;
 	width: 700px;
-	height: 420px;
+	height: 520px;
 }
 
 /* Garante que o SVG ocupe todo o espaço interno da pedra */
@@ -95,4 +95,41 @@ main {
 .stone.selected {
 	outline: 3px solid #ffb020;
 	transform: translateY(-4px);
+}
+
+.game-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+}
+
+.game-controls {
+    position: fixed;
+    bottom: 30px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+.game-controls button,
+.game-controls select {
+    min-width: 150px;
+    height: 42px;
+    padding: 0 18px;
+    border: 1px solid #8a7a5c;
+    border-radius: 6px;
+    background: #f4ead0;
+    color: #1c2530;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.game-controls button:hover,
+.game-controls select:hover {
+    filter: brightness(0.95);
 }
