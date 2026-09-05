@@ -1,39 +1,125 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
+
 <head>
-	<meta charset="UTF-8" />
-	<title>Mahjong — demo do motor</title>
-	<link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f18" />
+    <title>Mahjong — Mesa de jogo</title>
+    <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-	<header>
-		<h1>Mahjong</h1>
-		<div class="hud">
-			<span>Tempo: <strong id="time">00:00</strong></span>
-			<span>Status: <strong id="status">parado</strong></span>
-			<span id="combo" class="combo"></span>
-		</div>
-	</header>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand" aria-label="Mahjong">
+                <span class="brand-mark">麻</span>
+                <span>Mahjong</span>
+            </div>
 
-	<main>
-    <div class="game-area">
-        <div id="board"></div>
+            <div class="main-nav" aria-label="Menu principal">
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="game-menu" type="button" aria-expanded="false">Jogo
+                        <span>⌄</span></button>
+                    <div class="menu-panel" id="game-menu" hidden>
+                        <button type="button" data-action="new">Novo jogo</button>
+                        <button type="button" data-action="pause" id="pause-action">Pausar</button>
+                        <button type="button" data-action="hint">Dica</button>
+                        <button type="button" data-action="undo">Desfazer movimento</button>
+                        <button type="button" data-action="shuffle">Embaralhar</button>
+                    </div>
+                </div>
 
-        <div class="game-controls">
-            <button id="reset-button" type="button">
-                Resetar
-            </button>
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="tools-menu" type="button" aria-expanded="false">Ferramentas
+                        <span>⌄</span></button>
+                    <div class="menu-panel" id="tools-menu" hidden>
+                        <button type="button" data-action="hint">Encontrar uma jogada</button>
+                        <button type="button" data-action="clear-selection">Limpar seleção</button>
+                        <button type="button" data-action="fullscreen">Tela cheia</button>
+                    </div>
+                </div>
 
-            <select id="difficulty">
-                <option selected disabled>Selecionar dificuldade</option>
-                <option value="normal">Normal</option>
-                <option value="dificil">Difícil</option>
-                <option value="extremo">Extremo</option>
-            </select>
-        </div>
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="settings-menu" type="button"
+                        aria-expanded="false">Configurações <span>⌄</span></button>
+                    <div class="menu-panel settings-panel" id="settings-menu" hidden>
+                        <label class="setting-row"><span>Mostrar relógio</span><input id="clock-toggle" type="checkbox"
+                                checked></label>
+                        <label class="setting-row"><span>Sons</span><input id="sound-toggle" type="checkbox"
+                                checked></label>
+                        <label class="setting-row"><span>Modo compacto</span><input id="compact-toggle"
+                                type="checkbox"></label>
+                    </div>
+                </div>
+
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="theme-menu" type="button" aria-expanded="false">Tema
+                        <span>⌄</span></button>
+                    <div class="menu-panel theme-panel" id="theme-menu" hidden>
+                        <div class="menu-section-title">Tema da interface</div>
+                        <button type="button" data-theme="dark">Escuro</button>
+                        <button type="button" data-theme="midnight">Midnight</button>
+                        <button type="button" data-theme="light">Claro</button>
+                        <button type="button" data-theme="sage">Sálvia</button>
+                        <div class="menu-divider"></div>
+                        <label class="menu-select-row tileset-row">
+                            <span>Tema das peças</span>
+                            <select id="tileset-select" aria-label="Tema das peças"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="map-menu" type="button" aria-expanded="false">Mapa
+                        <span>⌄</span></button>
+                    <div class="menu-panel" id="map-menu" hidden>
+                        <button type="button" data-map="turtle">Tartaruga clássica</button>
+                        <button type="button" data-map="lines">Linhas</button>
+                        <button type="button" data-map="checker">Tabuleiro</button>
+                        <button type="button" data-map="rings">Anéis</button>
+                        <button type="button" data-map="cross">Cruz</button>
+                        <button type="button" data-map="diamond">Diamante</button>
+                        <button type="button" data-map="triangle">Triângulo</button>
+                        <button type="button" data-map="areas">Áreas</button>
+                        <button type="button" data-map="shapes">Formas</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats" aria-label="Informações da partida">
+                <div class="stat" title="Pedras restantes no tabuleiro">
+                    <span class="stat-label">Pedras</span>
+                    <strong id="stones-count">144</strong>
+                </div>
+                <div class="stat" title="Movimentos realizados">
+                    <span class="stat-label">Movimentos</span>
+                    <strong id="moves-count">0</strong>
+                </div>
+                <div class="stat" title="Pares que podem ser combinados agora no tabuleiro">
+                    <span class="stat-label">Jogadas possíveis</span>
+                    <strong id="possible-moves-count">0</strong>
+                </div>
+                <div class="stat clock-stat" id="clock-stat">
+                    <span class="stat-label">Tempo</span>
+                    <strong id="time">00:00</strong>
+                </div>
+                <span id="status" class="status-pill pronto">Pronto</span>
+            </div>
+        </header>
+
+        <main class="game-main">
+            <section class="board-stage" aria-label="Tabuleiro de Mahjong">
+                <div class="board-frame" id="board-frame">
+                    <div class="board-watermark">MAHJONG</div>
+                    <div id="board" role="grid" aria-label="Peças do tabuleiro"></div>
+                </div>
+            </section>
+        </main>
     </div>
-</main>
 
-	<script type="module" src="./main.js"></script>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./main.js"></script>
 </body>
+
 </html>
