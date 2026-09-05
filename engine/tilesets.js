@@ -19,6 +19,11 @@ export const KyodaiTileSets = [
         source: 'engine/assets/images/platinum2-red.jpg'
     },
     {
+        name: 'Cards',
+        author: 'My Kyodai Mahjong',
+        source: 'engine/assets/images/cards.jpg'
+    },
+    {
         name: 'Disney Princess',
         author: 'My Kyodai Mahjong',
         source: 'engine/assets/images/disney-princess.jpg'

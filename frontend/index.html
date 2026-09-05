@@ -7,6 +7,13 @@
     <meta name="theme-color" content="#0a0f18" />
     <title>Mahjong — Mesa de jogo</title>
     <link rel="stylesheet" href="style.css" />
+    <script>
+        // Guarda de autenticação — sem token salvo, nem carrega o jogo:
+        // manda direto pro login.
+        if (!localStorage.getItem('mahjong:token')) {
+            window.location.replace('html/login.html');
+        }
+    </script>
 </head>
 
 <body>
@@ -106,6 +113,20 @@
                 </div>
                 <span id="status" class="status-pill pronto">Pronto</span>
             </div>
+
+            <div class="nav-menu account-menu">
+                <button class="nav-button account-button" data-menu="account-menu" type="button"
+                    aria-expanded="false">
+                    <img id="topbar-avatar-img" class="topbar-avatar" src="" alt="" hidden />
+                    <span id="topbar-avatar-fallback" class="topbar-avatar topbar-avatar-fallback">?</span>
+                    <span id="topbar-display-name">Perfil</span>
+                    <span>⌄</span>
+                </button>
+                <div class="menu-panel menu-panel--right" id="account-menu" hidden>
+                    <a href="html/profile.html">Ver perfil</a>
+                    <button type="button" id="logout-action">Sair</button>
+                </div>
+            </div>
         </header>
 
         <main class="game-main">
@@ -120,6 +141,51 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./main.js"></script>
+    <script>
+        // Só popula o chip de conta (avatar/nome) e cuida do logout — não
+        // encosta em nada do motor do jogo (isso é o main.js).
+        (() => {
+            'use strict';
+
+            const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+            const token = localStorage.getItem('mahjong:token');
+
+            document.getElementById('logout-action').addEventListener('click', () => {
+                localStorage.removeItem('mahjong:token');
+                localStorage.removeItem('mahjong:user');
+                window.location.href = 'html/login.html';
+            });
+
+            if (!token) return;
+
+            fetch(`${API_BASE_URL}/profiles/me`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+                .then((response) => (response.ok ? response.json() : null))
+                .then((profile) => {
+                    if (!profile) return;
+
+                    const nameEl = document.getElementById('topbar-display-name');
+                    const imgEl = document.getElementById('topbar-avatar-img');
+                    const fallbackEl = document.getElementById('topbar-avatar-fallback');
+
+                    const name = profile.display_name || 'Perfil';
+                    nameEl.textContent = name;
+
+                    if (profile.avatar_url) {
+                        imgEl.src = `${API_BASE_URL}${profile.avatar_url}`;
+                        imgEl.hidden = false;
+                        fallbackEl.hidden = true;
+                    } else {
+                        fallbackEl.textContent = name.trim().charAt(0).toUpperCase() || '?';
+                    }
+                })
+                .catch(() => {
+                    // Sem conexão com o backend agora — o jogo continua funcionando
+                    // normalmente, só o chip de conta fica no estado padrão.
+                });
+        })();
+    </script>
 </body>
 
 </html>

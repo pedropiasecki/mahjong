@@ -606,3 +606,66 @@ body.compact .board-frame {
     outline: 2px solid currentColor;
     outline-offset: 1px;
 }
+/* ---------- chip de conta (avatar + nome) na topbar ---------- */
+.account-menu {
+    margin-left: 6px;
+}
+
+.account-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+}
+
+.topbar-avatar-fallback {
+    display: grid;
+    place-items: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.topbar-avatar[hidden],
+.topbar-avatar-fallback[hidden] {
+    display: none !important;
+}
+
+#topbar-display-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* menu-panel alinhado à direita (evita vazar pra fora da tela quando é o
+   último item da topbar) */
+.menu-panel--right {
+    left: auto;
+    right: 0;
+}
+
+.menu-panel a {
+    display: block;
+    width: 100%;
+    padding: 10px 11px;
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+    color: #d1d9e5;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.menu-panel a:hover {
+    background: var(--surface-2);
+    color: #fff;
+}

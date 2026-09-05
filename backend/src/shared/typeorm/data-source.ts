@@ -1,4 +1,6 @@
 import { User } from "@modules/users/typeorm/entities/User";
+import { Profile } from "@modules/profiles/typeorm/entities/Profile";
+import { GameSession } from "@modules/games/typeorm/entities/GameSession";
 import path from "path";
 import { DataSource } from "typeorm";
 
@@ -12,6 +14,6 @@ export const AppDataSource = new DataSource({
     database: "mahjong_db",
     synchronize: false,
     logging: true,
-    entities: [User],
+    entities: [User, Profile, GameSession],
     migrations: [path.join("src", "shared", "typeorm", "migrations", "*.ts")]
 });
