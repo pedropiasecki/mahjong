@@ -1,0 +1,556 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: mahjong
+meta:
+  id: wrk_091c2debe99c4b0da0b2cc38b48e9e03
+  created: 1787885665954
+  modified: 1787885665954
+  description: ""
+collection:
+  - name: 03 - Profile (token)
+    meta:
+      id: fld_0917971497f64bb8919a745df292b59f
+      created: 1788637933313
+      modified: 1788639992411
+      sortKey: -2000
+      description: GET/PUT /profiles/me — perfil do usuário autenticado. Requer a
+        variável 'token' preenchida.
+    children:
+      - url: "{{ _.base_url }}/profiles/me"
+        name: Atualizar meu perfil
+        meta:
+          id: req_07fcca153e004e17900f858e433b81fa
+          created: 1788637933313
+          modified: 1788639618543
+          isPrivate: false
+          description: Atualiza display_name / avatar_url / bio. games_played, wins,
+            losses e best_time_seconds NÃO são editáveis aqui.
+          sortKey: -1900
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"display_name": "Ana do Mahjong",
+            	"avatar_url": "https://exemplo.com/avatar.png",
+            	"bio": "Gosto de corrida no modo multiplayer!"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/profiles/me"
+        name: Ver meu perfil
+        meta:
+          id: req_19a81d7c41b940698b153e3d20835adc
+          created: 1788637933313
+          modified: 1788638348189
+          isPrivate: false
+          description: Retorna o profile criado automaticamente no cadastro (display_name,
+            avatar_url, bio, games_played, wins, losses, best_time_seconds).
+          sortKey: -2000
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/profiles/me"
+        name: "Erro: avatar_url inválida"
+        meta:
+          id: req_b4ec8bd3bc894a8aaa4462acdcdc34bd
+          created: 1788637933313
+          modified: 1788640026977
+          isPrivate: false
+          description: "Esperado: 400 (Joi .uri())."
+          sortKey: -1800
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"avatar_url": "nao-e-uma-url"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3333/profiles/me/avatar
+        name: Trocar de foto
+        meta:
+          id: req_9cf9206c298145448fc2db9cae083d34
+          created: 1788639255080
+          modified: 1788639464993
+          isPrivate: false
+          description: ""
+          sortKey: -1788639255080
+        method: PATCH
+        body:
+          mimeType: multipart/form-data
+          params:
+            - name: avatar
+              value: undefined
+              fileName: /run/user/1000/doc/KyeHkv04ZmulUx_l7hIAdA/img_aluno.png
+              type: file
+        headers:
+          - name: content-type
+            value: multipart/form-data
+          - name: User-Agent
+            value: insomnia/12.6.0
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 01 - Users
+    meta:
+      id: fld_610e3e3a63fa4e608ed513c5661c3d4a
+      created: 1788637933313
+      modified: 1788639965195
+      sortKey: -4000
+      description: POST /users — cadastro de jogador (name, email, password).
+    children:
+      - url: "{{ _.base_url }}/users"
+        name: "Erro: nome duplicado"
+        meta:
+          id: req_930dd72dffd4425daf6eba8f93788791
+          created: 1788637933313
+          modified: 1788638252476
+          isPrivate: false
+          description: "Mesmo nome do cadastro anterior, e-mail diferente. Esperado: 400
+            'Name already in use'."
+          sortKey: -3800
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"name": "{{ _.test_name }}",
+            	"email": "outro@exemplo.com",
+            	"password": "{{ _.test_password }}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/users"
+        name: "Erro: nome curto"
+        meta:
+          id: req_9e9250d7886a4f479ece6923e167ec21
+          created: 1788637933313
+          modified: 1788638266278
+          isPrivate: false
+          description: "Nome com menos de 2 caracteres. Esperado: 400 (validação do
+            celebrate/Joi)."
+          sortKey: -3600
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"name": "A",
+            	"email": "carlos@exemplo.com",
+            	"password": "123456"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/users"
+        name: "Erro: senha curta"
+        meta:
+          id: req_a8a0bd1021984c398be6c97f9f051d0b
+          created: 1788637933313
+          modified: 1788638260437
+          isPrivate: false
+          description: "Senha com menos de 6 caracteres. Esperado: 400 (validação do
+            celebrate/Joi)."
+          sortKey: -3700
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"name": "Beto Jogador",
+            	"email": "beto@exemplo.com",
+            	"password": "123"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/users"
+        name: "Erro: e-mail duplicado"
+        meta:
+          id: req_b4488b5ae95147ef98390970edbbc29b
+          created: 1788637933313
+          modified: 1788638240741
+          isPrivate: false
+          description: "Mesmo e-mail do cadastro anterior, nome diferente. Esperado: 400
+            'Email already in use'."
+          sortKey: -3900
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"name": "Outro Nome",
+            	"email": "{{ _.test_email }}",
+            	"password": "{{ _.test_password }}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/users"
+        name: Cadastrar jogador
+        meta:
+          id: req_ca04761aa7914c16b850e5ec553947c4
+          created: 1788637933313
+          modified: 1788638129195
+          isPrivate: false
+          description: Cadastro válido. Depois de rodar, use o mesmo e-mail/senha na pasta
+            de Login.
+          sortKey: -4000
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"name": "{{ _.test_name }}",
+            	"email": "{{ _.test_email }}",
+            	"password": "{{ _.test_password }}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 02 - Sessions (login)
+    meta:
+      id: fld_a60e1342a21148bbaf4d01a974b8aad7
+      created: 1788637933313
+      modified: 1788639979487
+      sortKey: -3000
+      description: POST /sessions — autenticação. Copie o 'token' da resposta para a
+        variável de ambiente 'token'.
+    children:
+      - url: "{{ _.base_url }}/sessions"
+        name: "Erro: senha incorreta"
+        meta:
+          id: req_981f859af9ce47acbc5249e59ad1d5a7
+          created: 1788637933313
+          modified: 1788638288655
+          isPrivate: false
+          description: "Esperado: 401 'E-mail ou senha incorretos' (AppError)."
+          sortKey: -2900
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"email": "{{ _.test_email }}",
+            	"password": "senhaerrada"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/sessions"
+        name: "Erro: e-mail inexistente"
+        meta:
+          id: req_acd60016c33843b4a2eab69e511a795d
+          created: 1788637933313
+          modified: 1788638296610
+          isPrivate: false
+          description: "Esperado: 401."
+          sortKey: -2800
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"email": "naoexiste@exemplo.com",
+            	"password": "123456"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/sessions"
+        name: Login
+        meta:
+          id: req_b23b0648d8b84678af1c2041151bb5a7
+          created: 1788637933313
+          modified: 1788637933313
+          isPrivate: false
+          description: Login válido. Copie 'token' da resposta para a env var 'token'
+            antes de rodar as pastas 03/04.
+          sortKey: -3000
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"email": "{{ _.test_email }}",
+            	"password": "{{ _.test_password }}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 04 - Partidas (token)
+    meta:
+      id: fld_fd452215c6c04932bcb061c12bc9d39d
+      created: 1788637933313
+      modified: 1788640048916
+      sortKey: -1000
+      description: GET/POST /games — histórico de partidas. Requer a variável 'token'
+        preenchida.
+    children:
+      - url: "{{ _.base_url }}/games"
+        name: Registrar partida vencida
+        meta:
+          id: req_31d17c3f1266486191a6eb99437f964e
+          created: 1788637933313
+          modified: 1788638434450
+          isPrivate: false
+          description: Cria um GameSession e atualiza games_played/wins/best_time_seconds
+            no profile.
+          sortKey: -1000
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"mode": "singleplayer",
+            	"map_layout": "turtle",
+            	"tileset": "classic",
+            	"duration_seconds": 145,
+            	"moves_count": 62,
+            	"result": "won"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/games"
+        name: Registrar partida abandonada
+        meta:
+          id: req_492c52f30158463c98e517a47aafeb3c
+          created: 1788637933313
+          modified: 1788638447256
+          isPrivate: false
+          description: Atualiza games_played/losses no profile.
+          sortKey: -900
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"mode": "singleplayer",
+            	"map_layout": "lines",
+            	"tileset": "classic",
+            	"duration_seconds": 40,
+            	"moves_count": 10,
+            	"result": "abandoned"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/games"
+        name: Listar meu histórico
+        meta:
+          id: req_783c07d4a6d541169bfd323fb645c02b
+          created: 1788637933313
+          modified: 1788638462743
+          isPrivate: false
+          description: Lista as últimas partidas do usuário autenticado, mais recente
+            primeiro.
+          sortKey: -800
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/games"
+        name: "Erro: result inválido"
+        meta:
+          id: req_f8b67b29bee54cb9b987574850f647f9
+          created: 1788637933313
+          modified: 1788638519137
+          isPrivate: false
+          description: "'result' só aceita 'won' ou 'abandoned'. Esperado: 400."
+          sortKey: -700
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"mode": "singleplayer",
+            	"duration_seconds": 100,
+            	"result": "empatou"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_d035e34fd4602ee190100061d33d435944da68b0
+    created: 1787885666004
+    modified: 1787885666004
+environments:
+  name: Base Environment
+  meta:
+    id: env_d035e34fd4602ee190100061d33d435944da68b0
+    created: 1787885665994
+    modified: 1788638189610
+    isPrivate: false
+  data:
+    base_url: http://localhost:3333
+    token: ""
+    test_email: ana@exemplo.com
+    test_password: "123456"
+    test_name: Ana Jogadora
