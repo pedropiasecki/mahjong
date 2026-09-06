@@ -1,6 +1,6 @@
 import { Game } from '../engine/game.js';
 import { MODE_SOLVABLE } from '../engine/builder.js';
-import { GAME_MODE_EASY, GAME_MODE_EXPERT, GAME_MODE_ID_DEFAULT } from '../engine/consts.js';
+import { GAME_MODE_EASY, GAME_MODE_EXPERT, GAME_MODE_ID_DEFAULT, RESCUE_SHUFFLE_ATTEMPTS } from '../engine/consts.js';
 import { generateRandomMapping } from '../engine/random-layout/random-layout.js';
 import { KyodaiTileSets, buildKyodaiSVG } from '../engine/tilesets.js';
 
@@ -61,6 +61,10 @@ let currentTileset = localStorage.getItem('mahjong-tileset') || KyodaiTileSets[0
 let currentDifficulty = 'normal';
 let matchTimestamps = [];
 let previousStoneCount = 144;
+// Enquanto a mesma partida durar, uma derrota (travou e o jogador escolheu
+// embaralhar, ou travou de vez) só é reportada ao backend UMA vez, mesmo
+// que o tabuleiro trave várias vezes seguidas — evita inflar games_played.
+let matchLossReported = false;
 let toastTimer;
 let resizeFrame;
 let lastFocusedKey;
@@ -102,6 +106,13 @@ function generateMap(mode = currentMap) {
 }
 
 function startNewGame(map = currentMap, difficulty = currentDifficulty) {
+	// Trocar de tabuleiro (botão "Novo jogo", trocar mapa ou dificuldade)
+	// enquanto uma partida já está rodando/pausada conta como abandono —
+	// surrender() dispara o game.gameOver() interceptado abaixo, que reporta
+	// isso ao backend antes do reset apagar o progresso.
+	if (!game.isIdle()) {
+		game.surrender();
+	}
 	currentMap = map;
 	currentDifficulty = difficulty;
 	localStorage.setItem('mahjong-map', currentMap);
@@ -114,6 +125,7 @@ function startNewGame(map = currentMap, difficulty = currentDifficulty) {
 	);
 	previousStoneCount = game.board.count();
 	matchTimestamps = [];
+	matchLossReported = false;
 	updatePauseLabel();
 	render();
 }
@@ -269,6 +281,233 @@ game.click = stone => {
 	game.save();
 	return result;
 };
+
+const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+
+// Envia o resultado da partida pro backend (POST /games), que já atualiza
+// games_played/wins/losses/best_time_seconds do profile na mesma transação.
+// Nunca deixa uma falha de rede/backend quebrar o jogo — só loga um aviso.
+async function reportGameSession(result, elapsedMs, movesCount) {
+	const token = localStorage.getItem('mahjong:token');
+	if (!token) return; // index.html já exige login antes de chegar aqui, mas por segurança
+
+	try {
+		const response = await fetch(`${API_BASE_URL}/games`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({
+				mode: 'singleplayer',
+				map_layout: currentMap,
+				tileset: currentTileset,
+				duration_seconds: Math.max(0, Math.round(elapsedMs / 1000)),
+				moves_count: movesCount,
+				result,
+			}),
+		});
+
+		if (!response.ok) {
+			console.warn('Não foi possível registrar a partida no backend.', response.status);
+		}
+	} catch (error) {
+		// Backend fora do ar — o jogo continua normalmente, só essa
+		// partida específica não entra nas estatísticas do perfil.
+		console.warn('Backend indisponível, partida não registrada.', error);
+	}
+}
+
+// Mostra a tela de fim de partida com o motivo real (vitória com/sem
+// recorde, ou derrota por falta de jogadas). Abandono (troca de mapa) não
+// passa por aqui — quem trocou de mapa já sabe o que fez.
+const gameOverModalEl = document.querySelector('#game-over-modal');
+const gameOverIconEl = document.querySelector('#game-over-icon');
+const gameOverTitleEl = document.querySelector('#game-over-title');
+const gameOverMessageEl = document.querySelector('#game-over-message');
+const gameOverStatsEl = document.querySelector('#game-over-stats');
+
+function showGameOverModal(kind, { elapsedMs, movesCount, isRecord }) {
+	gameOverModalEl.classList.remove('is-won', 'is-lost');
+	gameOverModalEl.classList.add(kind === 'won' ? 'is-won' : 'is-lost');
+
+	if (kind === 'won') {
+		gameOverIconEl.textContent = isRecord ? '🏆' : '🎉';
+		gameOverTitleEl.textContent = isRecord ? 'Novo recorde!' : 'Vitória!';
+		gameOverMessageEl.textContent = isRecord
+			? 'Você zerou o tabuleiro e bateu seu melhor tempo nesse mapa.'
+			: 'Você encontrou todos os pares e zerou o tabuleiro.';
+	} else {
+		gameOverIconEl.textContent = '😕';
+		gameOverTitleEl.textContent = 'Sem mais jogadas';
+		gameOverMessageEl.textContent = 'As peças que restaram não formam nenhum par possível — o tabuleiro travou. Da próxima vez, "Desfazer" ou "Dica" no menu Jogo podem evitar isso.';
+	}
+
+	gameOverStatsEl.innerHTML = `
+		<div class="game-over-stat"><span class="game-over-stat-value">${formatTime(elapsedMs)}</span><span class="game-over-stat-label">Tempo</span></div>
+		<div class="game-over-stat"><span class="game-over-stat-value">${movesCount}</span><span class="game-over-stat-label">Jogadas</span></div>
+	`;
+
+	gameOverModalEl.hidden = false;
+	document.querySelector('#game-over-replay')?.focus();
+}
+
+function hideGameOverModal() {
+	gameOverModalEl.hidden = true;
+}
+
+function bindGameOverModal() {
+	document.querySelector('#game-over-close').addEventListener('click', hideGameOverModal);
+	document.querySelector('#game-over-replay').addEventListener('click', () => {
+		hideGameOverModal();
+		startNewGame(currentMap, currentDifficulty);
+		showToast('Novo tabuleiro criado.');
+	});
+	// clicar fora do card (no fundo escurecido) também fecha
+	gameOverModalEl.addEventListener('click', event => {
+		if (event.target === gameOverModalEl) hideGameOverModal();
+	});
+	document.addEventListener('keydown', event => {
+		if (event.key === 'Escape' && !gameOverModalEl.hidden) hideGameOverModal();
+	});
+}
+
+// game.gameOver(message, playTime) é o único ponto do engine por onde toda
+// partida termina — vitória (MSG_GOOD/MSG_BEST), derrota por falta de
+// jogadas (MSG_FAIL) e desistência via surrender() (sem message nenhuma).
+// Interceptar aqui cobre os três desfechos sem duplicar lógica.
+const originalGameOver = game.gameOver.bind(game);
+game.gameOver = (message, playTime) => {
+	const elapsedMs = playTime ?? game.clock.elapsed();
+	const movesCount = Math.floor(game.board.undo().length / 2);
+
+	let result;
+	if (message === 'MSG_GOOD' || message === 'MSG_BEST') result = 'won';
+	else if (message === 'MSG_FAIL') result = 'lost';
+	else result = 'abandoned';
+
+	originalGameOver(message, playTime);
+
+	// Só reporta/mostra partidas com pelo menos uma jogada — evita logar
+	// "partidas" vazias de quem só ficou trocando de mapa sem chegar a jogar.
+	if (movesCount > 0) {
+		const shouldReport = result !== 'lost' || !matchLossReported;
+		if (shouldReport) {
+			reportGameSession(result, elapsedMs, movesCount);
+			if (result === 'lost') matchLossReported = true;
+		}
+
+		if (result === 'won' || result === 'lost') {
+			showGameOverModal(result, { elapsedMs, movesCount, isRecord: message === 'MSG_BEST' });
+		}
+	}
+};
+
+// ---------------------------------------------------------------------
+// Tabuleiro travado (sem jogadas possíveis)
+//
+// O engine tem DOIS pontos que finalizam a partida quando trava:
+//   - gameOverLosing(): Normal/Difícil (e Fácil quando sobra <=1 peça livre)
+//     — finaliza a partida NA HORA, indo direto pro estado "idle". É por
+//     isso que "Desfazer"/"Embaralhar" paravam de funcionar: eles só agem
+//     com isRunning()===true, e "idle" não é "running".
+//   - gameOverEasyMode(): só no modo Fácil, tentava um resgate silencioso
+//     (nenhuma mensagem aparecia na tela).
+//
+// Interceptando os dois, a partida nunca mais cai direto no "idle" travado:
+// sempre mostramos uma escolha real antes. O estado continua 'run' durante
+// a escolha, então os botões do menu (Desfazer etc.) continuam funcionando
+// normalmente por trás — mas como o modal cobre a tela, oferecemos as
+// mesmas ações diretamente nele.
+// ---------------------------------------------------------------------
+const originalGameOverLosing = game.gameOverLosing.bind(game);
+
+const stuckModalEl = document.querySelector('#stuck-modal');
+const stuckStatsEl = document.querySelector('#stuck-stats');
+const stuckUndoButton = document.querySelector('#stuck-undo');
+let stuckSnapshot = null; // { elapsedMs, movesCount } no exato momento em que travou
+
+function showStuckModal() {
+	stuckSnapshot = {
+		elapsedMs: game.clock.elapsed(),
+		movesCount: Math.floor(game.board.undo().length / 2),
+	};
+
+	stuckStatsEl.innerHTML = `
+		<div class="game-over-stat"><span class="game-over-stat-value">${formatTime(stuckSnapshot.elapsedMs)}</span><span class="game-over-stat-label">Tempo</span></div>
+		<div class="game-over-stat"><span class="game-over-stat-value">${stuckSnapshot.movesCount}</span><span class="game-over-stat-label">Jogadas</span></div>
+	`;
+
+	// Desfazer é uma regra do próprio jogo desabilitada no modo Difícil —
+	// mantemos essa mesma regra aqui em vez de reinventar uma nova.
+	stuckUndoButton.hidden = game.mode() === GAME_MODE_EXPERT;
+
+	stuckModalEl.hidden = false;
+	document.querySelector('#stuck-shuffle')?.focus();
+}
+
+function hideStuckModal() {
+	stuckModalEl.hidden = true;
+}
+
+function bindStuckModal() {
+	stuckUndoButton.addEventListener('click', () => {
+		hideStuckModal();
+		game.back();
+		render();
+		showToast('Última jogada desfeita.');
+	});
+
+	document.querySelector('#stuck-shuffle').addEventListener('click', () => {
+		const { elapsedMs, movesCount } = stuckSnapshot;
+		hideStuckModal();
+
+		// Conta como derrota só na primeira vez que a partida trava — se
+		// travar de novo mais adiante na mesma partida, não conta de novo.
+		const isFirstLossThisMatch = !matchLossReported;
+		if (isFirstLossThisMatch) {
+			reportGameSession('lost', elapsedMs, movesCount);
+			matchLossReported = true;
+		}
+
+		let rescued = false;
+		for (let attempt = 0; attempt < RESCUE_SHUFFLE_ATTEMPTS; attempt += 1) {
+			game.board.shuffle();
+			if (game.board.free().length > 0) {
+				rescued = true;
+				break;
+			}
+		}
+		render();
+
+		if (rescued) {
+			showToast(
+				isFirstLossThisMatch
+					? 'Peças embaralhadas — a derrota já foi registrada, mas dá pra continuar.'
+					: 'Peças embaralhadas — essa partida já contava como derrota, dá pra continuar.'
+			);
+		} else {
+			// Nem embaralhar resolveu (raro) — a partida realmente acabou.
+			// A derrota já foi reportada (agora ou antes), então finalizamos
+			// sem reportar de novo (usamos o gameOver ORIGINAL, não o
+			// interceptado).
+			originalGameOver('MSG_FAIL');
+			showGameOverModal('lost', { elapsedMs, movesCount, isRecord: false });
+		}
+	});
+
+	document.querySelector('#stuck-finish').addEventListener('click', () => {
+		hideStuckModal();
+		originalGameOverLosing();
+	});
+
+	// Sem fechar clicando fora/Esc de propósito: enquanto travado, o
+	// jogador precisa escolher uma das 3 ações — não existe "deixar como
+	// está" sem ficar preso de novo.
+}
+
+game.gameOverLosing = showStuckModal;
+game.gameOverEasyMode = showStuckModal;
 
 function closeMenus() {
 	document.querySelectorAll('.menu-panel').forEach(panel => {
@@ -513,6 +752,8 @@ async function init() {
 	bindBoardNavigation();
 	bindControls();
 	bindDifficulty();
+	bindGameOverModal();
+	bindStuckModal();
 	window.addEventListener('resize', requestBoardRender);
 	startNewGame();
 	setInterval(updateHUD, 250);

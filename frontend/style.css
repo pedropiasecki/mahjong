@@ -669,3 +669,158 @@ body.compact .board-frame {
     background: var(--surface-2);
     color: #fff;
 }
+
+/* ---------- modal de fim de partida (vitória / derrota) ---------- */
+.game-over-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 7, 12, .72);
+    backdrop-filter: blur(6px);
+    padding: 20px;
+}
+
+.game-over-overlay[hidden] {
+    display: none !important;
+}
+
+.game-over-card {
+    width: 100%;
+    max-width: 340px;
+    padding: 28px 26px 24px;
+    text-align: center;
+    background: rgba(16, 23, 34, .96);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, .55);
+    animation: game-over-pop .18s ease;
+}
+
+@keyframes game-over-pop {
+    from {
+        transform: scale(.94);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.game-over-icon {
+    display: block;
+    font-size: 40px;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.game-over-title {
+    margin: 0 0 8px;
+    font-size: 21px;
+    font-weight: 750;
+    letter-spacing: -.01em;
+}
+
+.game-over-overlay.is-won .game-over-title {
+    color: var(--accent);
+}
+
+.game-over-overlay.is-lost .game-over-title {
+    color: #f0a15c;
+}
+
+.game-over-message {
+    margin: 0 0 18px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.game-over-stats {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.game-over-stat {
+    flex: 1;
+    max-width: 120px;
+    padding: 10px 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.game-over-stat-value {
+    font-size: 17px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+
+.game-over-stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+.game-over-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game-over-actions .btn-primary {
+    padding: 11px 14px;
+    border: 0;
+    border-radius: 10px;
+    background: linear-gradient(160deg, #ecc776, var(--accent) 60%, #b9862f);
+    color: #0a0f18;
+    font-weight: 750;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 12px 24px rgba(217, 164, 65, .22);
+}
+
+.game-over-actions .btn-primary:hover {
+    filter: brightness(1.04);
+}
+
+.game-over-actions .btn-secondary {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.game-over-actions .btn-secondary:hover {
+    color: var(--text);
+    border-color: rgba(148, 163, 184, .35);
+}
+
+.game-over-actions .btn-tertiary {
+    padding: 8px 14px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.game-over-actions .btn-tertiary:hover {
+    color: #f87171;
+    text-decoration: underline;
+}

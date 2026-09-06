@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f18" />
+    <title>Mahjong — Ranking</title>
+    <link rel="stylesheet" href="../css/ranking.css" />
+    <script>
+        if (!localStorage.getItem('mahjong:token')) {
+            window.location.replace('login.html');
+        }
+    </script>
+</head>
+
+<body class="ranking-body">
+    <div class="ranking-shell">
+        <header class="ranking-topbar">
+            <div class="brand" aria-label="Mahjong">
+                <span class="brand-mark">麻</span>
+                <span>Mahjong</span>
+            </div>
+            <div class="topbar-links">
+                <a class="link-back" href="profile.html">Perfil</a>
+                <a class="link-back" href="../index.html">← Voltar ao jogo</a>
+            </div>
+        </header>
+
+        <main class="ranking-main">
+            <section class="ranking-card" aria-labelledby="ranking-heading">
+                <div class="ranking-header">
+                    <h1 id="ranking-heading" class="ranking-title">Ranking</h1>
+                    <label class="map-select-wrap">
+                        <span class="field-label">Mapa</span>
+                        <select id="map-select">
+                            <option value="turtle">Tartaruga clássica</option>
+                            <option value="lines">Linhas</option>
+                            <option value="checker">Tabuleiro</option>
+                            <option value="rings">Anéis</option>
+                            <option value="cross">Cruz</option>
+                            <option value="diamond">Diamante</option>
+                            <option value="triangle">Triângulo</option>
+                            <option value="areas">Áreas</option>
+                            <option value="shapes">Formas</option>
+                        </select>
+                    </label>
+                </div>
+
+                <p class="ranking-subtitle">Melhor tempo de vitória de cada jogador nesse mapa.</p>
+
+                <div id="ranking-alert" class="ranking-alert" role="alert" hidden></div>
+
+                <ol id="ranking-list" class="ranking-list" aria-live="polite"></ol>
+
+                <p id="ranking-empty" class="ranking-empty" hidden>Ninguém venceu esse mapa ainda — seja o
+                    primeiro!</p>
+
+                <div id="my-position-card" class="my-position-card" hidden>
+                    <span class="my-position-label">Sua posição</span>
+                    <span id="my-position-value" class="my-position-value">—</span>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            'use strict';
+
+            const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+            const token = localStorage.getItem('mahjong:token');
+            const storedUser = JSON.parse(localStorage.getItem('mahjong:user') || 'null');
+
+            const mapSelect = document.getElementById('map-select');
+            const listEl = document.getElementById('ranking-list');
+            const emptyEl = document.getElementById('ranking-empty');
+            const alertEl = document.getElementById('ranking-alert');
+            const myPositionCard = document.getElementById('my-position-card');
+            const myPositionValue = document.getElementById('my-position-value');
+
+            function showAlert(message) {
+                alertEl.textContent = message;
+                alertEl.hidden = false;
+            }
+
+            function hideAlert() {
+                alertEl.hidden = true;
+            }
+
+            function formatDuration(totalSeconds) {
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = Math.floor(totalSeconds % 60);
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            async function apiGet(path) {
+                let response;
+                try {
+                    response = await fetch(`${API_BASE_URL}${path}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                } catch (networkError) {
+                    throw new Error(`Não foi possível conectar ao servidor em ${API_BASE_URL}.`);
+                }
+
+                if (response.status === 401) {
+                    localStorage.removeItem('mahjong:token');
+                    localStorage.removeItem('mahjong:user');
+                    window.location.href = 'login.html';
+                    throw new Error('Sessão expirada.');
+                }
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch {
+                    // sem corpo
+                }
+
+                if (!response.ok) {
+                    throw new Error((data && data.message) || `Erro inesperado (${response.status}).`);
+                }
+
+                return data;
+            }
+
+            function medalFor(position) {
+                if (position === 1) return '🥇';
+                if (position === 2) return '🥈';
+                if (position === 3) return '🥉';
+                return null;
+            }
+
+            function renderList(entries) {
+                listEl.innerHTML = '';
+                emptyEl.hidden = entries.length > 0;
+
+                for (const entry of entries) {
+                    const li = document.createElement('li');
+                    li.className = 'ranking-row';
+                    if (storedUser && entry.user_id === storedUser.id) {
+                        li.classList.add('is-me');
+                    }
+
+                    const medal = medalFor(entry.position);
+                    const name = entry.display_name || 'Jogador sem nome';
+                    const initial = name.trim().charAt(0).toUpperCase() || '?';
+
+                    li.innerHTML = `
+                        <span class="ranking-position">${medal || `#${entry.position}`}</span>
+                        <span class="ranking-avatar">
+                            ${entry.avatar_url
+                            ? `<img src="${API_BASE_URL}${entry.avatar_url}" alt="" />`
+                            : `<span class="ranking-avatar-fallback">${initial}</span>`}
+                        </span>
+                        <span class="ranking-name">${name}${storedUser && entry.user_id === storedUser.id ? ' (você)' : ''}</span>
+                        <span class="ranking-time">${formatDuration(entry.best_time_seconds)}</span>
+                    `;
+                    listEl.appendChild(li);
+                }
+            }
+
+            function renderMyPosition(myRanking, visibleEntries) {
+                // Se eu já apareço na lista visível, não precisa repetir embaixo.
+                const alreadyVisible = storedUser && visibleEntries.some(e => e.user_id === storedUser.id);
+                if (alreadyVisible || !myRanking.ranked) {
+                    myPositionCard.hidden = true;
+                    return;
+                }
+
+                myPositionValue.textContent = `#${myRanking.position} — ${formatDuration(myRanking.best_time_seconds)}`;
+                myPositionCard.hidden = false;
+            }
+
+            async function loadRanking(map) {
+                hideAlert();
+                listEl.innerHTML = '';
+                myPositionCard.hidden = true;
+                emptyEl.hidden = true;
+
+                try {
+                    const [entries, myRanking] = await Promise.all([
+                        apiGet(`/ranking?map=${encodeURIComponent(map)}&limit=20`),
+                        apiGet(`/ranking/me?map=${encodeURIComponent(map)}`),
+                    ]);
+
+                    renderList(entries);
+                    renderMyPosition(myRanking, entries);
+                } catch (err) {
+                    showAlert(err.message);
+                }
+            }
+
+            const savedMap = localStorage.getItem('mahjong-map') || 'turtle';
+            mapSelect.value = savedMap;
+            loadRanking(savedMap);
+
+            mapSelect.addEventListener('change', () => loadRanking(mapSelect.value));
+        })();
+    </script>
+</body>
+
+</html>

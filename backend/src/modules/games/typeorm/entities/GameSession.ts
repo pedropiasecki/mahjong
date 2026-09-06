@@ -13,7 +13,11 @@ import { User } from '@modules/users/typeorm/entities/User';
 // jogador) podem compartilhar um match_id futuro para agrupar o resultado de
 // uma mesma corrida (ainda não implementado).
 export type GameMode = 'singleplayer' | 'multiplayer';
-export type GameResult = 'won' | 'abandoned';
+// 'won' = tabuleiro zerado. 'lost' = travou (sem jogadas possíveis, o
+// tabuleiro engoliu o jogador). 'abandoned' = o jogador saiu/trocou de
+// tabuleiro antes da partida terminar — não conta como derrota nas
+// estatísticas, só entra em games_played.
+export type GameResult = 'won' | 'lost' | 'abandoned';
 
 // Um registro por partida jogada até o fim (ou abandonada). É a fonte de
 // verdade do histórico — os contadores agregados ficam em Profile, mas

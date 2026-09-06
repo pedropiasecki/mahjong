@@ -29,7 +29,7 @@ gameRouter.post(
 			tileset: Joi.string().optional(),
 			duration_seconds: Joi.number().integer().min(0).required(),
 			moves_count: Joi.number().integer().min(0).optional(),
-			result: Joi.string().valid('won', 'abandoned').required(),
+			result: Joi.string().valid('won', 'lost', 'abandoned').required(),
 		},
 	}),
 	async (req, res, next) => {

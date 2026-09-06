@@ -61,9 +61,11 @@ export default class CreateGameSessionService {
 					) {
 						profile.best_time_seconds = duration_seconds;
 					}
-				} else {
+				} else if (result === 'lost') {
 					profile.losses += 1;
 				}
+				// 'abandoned' só soma em games_played — o jogador desistiu, não
+				// necessariamente "perdeu" a partida.
 
 				await profileRepository.save(profile);
 			}

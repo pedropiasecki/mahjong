@@ -535,6 +535,154 @@ collection:
             send: true
             store: true
           rebuildPath: true
+      - url: "{{ _.base_url }}/games"
+        name: Registrar partida perdida (travou)
+        meta:
+          id: req_3285762bc0ab4add876a7ac40fa446a4
+          created: 1788662723033
+          modified: 1788662831710
+          isPrivate: false
+          description: Tabuleiro travou (sem jogadas possíveis). Atualiza
+            games_played/losses no profile.
+          sortKey: -975
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"mode": "singleplayer",
+            	"map_layout": "checker",
+            	"tileset": "classic",
+            	"duration_seconds": 90,
+            	"moves_count": 30,
+            	"result": "lost"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 05 - Ranking (requer token)
+    meta:
+      id: fld_b278f076ef8243d982f65905a51b38ae
+      created: 1788726102867
+      modified: 1788726102867
+      sortKey: -500
+      description: GET /ranking e /ranking/me — melhor tempo de vitória por mapa,
+        agrupado por jogador.
+    children:
+      - url: "{{ _.base_url }}/ranking?limit=20"
+        name: Ranking geral (todos os mapas misturados)
+        meta:
+          id: req_181122f50209489389fcd89c7efd8f80
+          created: 1788726102867
+          modified: 1788727190437
+          isPrivate: false
+          description: Sem o parâmetro 'map', mistura o melhor tempo de cada jogador entre
+            TODOS os mapas — como mapas têm tamanhos diferentes, não é uma
+            comparação justa; existe mais como fallback do que como uso
+            recomendado.
+          sortKey: -400
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/ranking?limit=0"
+        name: "Erro: limit inválido"
+        meta:
+          id: req_34eb4d195b44491fb6e39113494c3f3c
+          created: 1788726102867
+          modified: 1788727247633
+          isPrivate: false
+          description: "'limit' precisa ser >= 1 (e <= 100). Esperado: 400 (validação do
+            celebrate/Joi)."
+          sortKey: -350
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/ranking/me?map=turtle"
+        name: Minha posição no mapa 'turtle'
+        meta:
+          id: req_5639c5e9fac3473e848e572b8226146b
+          created: 1788726102867
+          modified: 1788727178665
+          isPrivate: false
+          description: Sua posição e melhor tempo nesse mapa, mesmo que você não esteja no
+            top exibido acima. Se 'ranked' vier false, é porque você ainda não
+            tem nenhuma vitória registrada nesse mapa.
+          sortKey: -450
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/ranking?map=turtle&limit=20"
+        name: Ranking do mapa 'turtle'
+        meta:
+          id: req_9bd31c41a1144a49b5d464d4c39d1a94
+          created: 1788726102867
+          modified: 1788727165872
+          isPrivate: false
+          description: Top jogadores por melhor tempo de vitória nesse mapa (só considera
+            mode=singleplayer e result=won). Troque 'turtle' por qualquer outro
+            mapa (lines, checker, rings, cross, diamond, triangle, areas,
+            shapes).
+          sortKey: -500
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:

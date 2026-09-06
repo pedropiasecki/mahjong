@@ -124,6 +124,7 @@
                 </button>
                 <div class="menu-panel menu-panel--right" id="account-menu" hidden>
                     <a href="html/profile.html">Ver perfil</a>
+                    <a href="html/ranking.html">Ranking</a>
                     <button type="button" id="logout-action">Sair</button>
                 </div>
             </div>
@@ -140,6 +141,34 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="game-over-modal" class="game-over-overlay" hidden>
+        <div class="game-over-card" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
+            <span id="game-over-icon" class="game-over-icon" aria-hidden="true">🏆</span>
+            <h2 id="game-over-title" class="game-over-title">Vitória!</h2>
+            <p id="game-over-message" class="game-over-message"></p>
+            <div id="game-over-stats" class="game-over-stats"></div>
+            <div class="game-over-actions">
+                <button type="button" class="btn-primary" id="game-over-replay">Jogar novamente</button>
+                <button type="button" class="btn-secondary" id="game-over-close">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stuck-modal" class="game-over-overlay is-lost" hidden>
+        <div class="game-over-card" role="dialog" aria-modal="true" aria-labelledby="stuck-title">
+            <span class="game-over-icon" aria-hidden="true">🔒</span>
+            <h2 id="stuck-title" class="game-over-title">Tabuleiro travado</h2>
+            <p class="game-over-message">Não sobrou nenhum par possível com as peças atuais. Escolha como continuar: embaralhar conta como derrota no seu perfil (mas a partida segue), desfazer volta à jogada anterior, ou finalize agora.</p>
+            <div id="stuck-stats" class="game-over-stats"></div>
+            <div class="game-over-actions">
+                <button type="button" class="btn-primary" id="stuck-shuffle">Embaralhar peças restantes</button>
+                <button type="button" class="btn-secondary" id="stuck-undo">Desfazer última jogada</button>
+                <button type="button" class="btn-tertiary" id="stuck-finish">Finalizar partida</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="./main.js"></script>
     <script>
         // Só popula o chip de conta (avatar/nome) e cuida do logout — não
