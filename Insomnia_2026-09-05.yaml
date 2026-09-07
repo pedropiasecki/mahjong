@@ -369,7 +369,7 @@ collection:
         meta:
           id: req_b23b0648d8b84678af1c2041151bb5a7
           created: 1788637933313
-          modified: 1788637933313
+          modified: 1788746162078
           isPrivate: false
           description: Login válido. Copie 'token' da resposta para a env var 'token'
             antes de rodar as pastas 03/04.
@@ -573,11 +573,11 @@ collection:
             send: true
             store: true
           rebuildPath: true
-  - name: 05 - Ranking (requer token)
+  - name: 05 - Ranking (token)
     meta:
       id: fld_b278f076ef8243d982f65905a51b38ae
       created: 1788726102867
-      modified: 1788726102867
+      modified: 1788746326169
       sortKey: -500
       description: GET /ranking e /ranking/me — melhor tempo de vitória por mapa,
         agrupado por jogador.
@@ -683,6 +683,322 @@ collection:
             send: true
             store: true
           rebuildPath: true
+  - name: 06 - Races (token)
+    meta:
+      id: fld_980503726ddd4f02b1c6cf2009628442
+      created: 1788744492649
+      modified: 1788746320960
+      sortKey: -300
+      description: "Fluxo de corrida: todos os participantes resolvem o MESMO
+        tabuleiro (mesma seed). Crie com um usuário/token, entre com outro, e
+        use dois tokens diferentes (troque o header Authorization manualmente)
+        pra simular 2 corredores de verdade."
+    children:
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}"
+        name: Ver placar / status da corrida
+        meta:
+          id: req_18a7d5a0af7a40c1a55b42d269c7a868
+          created: 1788744492649
+          modified: 1788746178731
+          isPrivate: false
+          description: Mostra todos os participantes e seus status (racing/finished). É
+            essa a rota que o front-end chamaria de novos em novos segundos
+            (polling) pra atualizar o placar ao vivo.
+          sortKey: -240
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}/finish"
+        name: "Erro: já terminou essa corrida"
+        meta:
+          id: req_1d21f05aae944af4b47b27671b2f67bb
+          created: 1788744492649
+          modified: 1788746243229
+          isPrivate: false
+          description: "Rodar de novo com o MESMO token de quem já terminou. Esperado: 400
+            'You already finished this race'."
+          sortKey: -220
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"duration_seconds": 90,
+            	"moves_count": 40
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races"
+        name: "Erro: map_layout ausente"
+        meta:
+          id: req_356b471a3e1d46678bcbcbf25c95aa75
+          created: 1788744492649
+          modified: 1788746301015
+          isPrivate: false
+          description: "'map_layout' é obrigatório. Esperado: 400 (validação do
+            celebrate/Joi)."
+          sortKey: -200
+        method: POST
+        body:
+          mimeType: application/json
+          text: "{}"
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races"
+        name: Criar corrida
+        meta:
+          id: req_394d29095bc34673bda284b2450709dc
+          created: 1788744492649
+          modified: 1788745451176
+          isPrivate: false
+          description: Cria a corrida e já te inscreve como participante. Copie o 'id' da
+            resposta para a variável de ambiente 'race_id' — as próximas
+            requisições dessa pasta usam {{ _.race_id }}.
+          sortKey: -300
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"map_layout": "checker"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}/finish"
+        name: Terminar a corrida (reportar resultado)
+        meta:
+          id: req_5ff974a4fd6e415f982834f6b3cb1313
+          created: 1788744492649
+          modified: 1788746197850
+          isPrivate: false
+          description: Cada participante chama isso quando termina de resolver o
+            tabuleiro. 'placement' é calculado pela ordem de chegada. Também
+            gera um GameSession (mode=multiplayer) que atualiza
+            games_played/wins do profile — mas fica de fora do ranking
+            singleplayer por mapa.
+          sortKey: -230
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"duration_seconds": 120,
+            	"moves_count": 58,
+            	"bonus_points": 1
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races?status=waiting&limit=20"
+        name: Listar corridas abertas
+        meta:
+          id: req_60469d237cbc48f6b8e1737bf9b5faf4
+          created: 1788744492649
+          modified: 1788745712115
+          isPrivate: false
+          description: Corridas que ainda aceitam gente (status=waiting), mais recentes
+            primeiro, com a contagem de participantes de cada uma.
+          sortKey: -290
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}/join"
+        name: Entrar na corrida
+        meta:
+          id: req_7facff3c8a0445cfb408de8c10dcacb1
+          created: 1788744492649
+          modified: 1788745767738
+          isPrivate: false
+          description: Entra como participante — troque o token pra simular um segundo
+            jogador entrando na mesma corrida. Só funciona enquanto
+            status=waiting.
+          sortKey: -280
+        method: POST
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/00000000-0000-0000-0000-000000000000"
+        name: "Erro: corrida inexistente"
+        meta:
+          id: req_9e21827b44fd48598900df836256d6a2
+          created: 1788744492649
+          modified: 1788746276664
+          isPrivate: false
+          description: "UUID válido mas que não existe. Esperado: 404 'Race not found'."
+          sortKey: -210
+        method: GET
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}/start"
+        name: Iniciar corrida
+        meta:
+          id: req_d9a3cdf1750a4d029d4139ef7a7d5925
+          created: 1788744492649
+          modified: 1788746129552
+          isPrivate: false
+          description: Rodar com o token de quem CRIOU a corrida. Muda o status para
+            'running' e trava novas entradas.
+          sortKey: -250
+        method: POST
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}/join"
+        name: "Erro: já entrou nessa corrida"
+        meta:
+          id: req_e334b80eb2b546469c79422aa8be2c19
+          created: 1788744492649
+          modified: 1788746086284
+          isPrivate: false
+          description: "Rodar de novo com o MESMO token de quem já entrou (ex.: quem criou
+            a corrida). Esperado: 400 'You already joined this race'."
+          sortKey: -270
+        method: POST
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/races/{{ _.race_id }}/start"
+        name: "Erro: só o criador pode iniciar"
+        meta:
+          id: req_f3d71b983f6f41d7ab4758f0b42deac0
+          created: 1788744492649
+          modified: 1788746113542
+          isPrivate: false
+          description: "Rodar com o token de alguém que ENTROU mas não CRIOU a corrida.
+            Esperado: 403 'Only the race creator can start it'."
+          sortKey: -260
+        method: POST
+        authentication:
+          type: bearer
+          token: "{% response 'body', 'req_b23b0648d8b84678af1c2041151bb5a7',
+            'b64::JC50b2tlbg==::46b', 'never', 60 %}"
+          prefix: ""
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
@@ -694,11 +1010,12 @@ environments:
   meta:
     id: env_d035e34fd4602ee190100061d33d435944da68b0
     created: 1787885665994
-    modified: 1788638189610
+    modified: 1788746050022
     isPrivate: false
   data:
     base_url: http://localhost:3333
     token: ""
+    race_id: 4cb0093e-4f95-4a2b-87ee-9206c63f368e
     test_email: ana@exemplo.com
     test_password: "123456"
     test_name: Ana Jogadora

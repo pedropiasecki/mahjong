@@ -3,6 +3,8 @@ import { Profile } from "@modules/profiles/typeorm/entities/Profile";
 import { GameSession } from "@modules/games/typeorm/entities/GameSession";
 import path from "path";
 import { DataSource } from "typeorm";
+import { Race } from "@modules/races/typeorm/entities/Race";
+import { RaceParticipant } from "@modules/races/typeorm/entities/RaceParticipant";
 
 
 export const AppDataSource = new DataSource({
@@ -14,6 +16,6 @@ export const AppDataSource = new DataSource({
     database: "mahjong_db",
     synchronize: false,
     logging: true,
-    entities: [User, Profile, GameSession],
+    entities: [User, Profile, GameSession, Race, RaceParticipant],
     migrations: [path.join("src", "shared", "typeorm", "migrations", "*.ts")]
 });
