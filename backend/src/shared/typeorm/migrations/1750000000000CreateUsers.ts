@@ -16,6 +16,11 @@ export class CreateUsuarios1750000000000 implements MigrationInterface {
 						isPrimary: true,
 						default: "uuid_generate_v4()",
 					},
+                    {
+						name: "name",
+						type: "varchar",
+						isUnique: true,
+					},
 					{
 						name: "email",
 						type: "varchar",

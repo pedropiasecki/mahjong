@@ -4,16 +4,36 @@ export function isKyodaiImageSet(name) {
 }
 export const KyodaiTileSets = [
     {
-        name: 'Teste',
-        author: 'eu',
-        source: 'engine/assets/images/imagem.jpg'
+        name: 'Traditional',
+        author: 'My Kyodai Mahjogn',
+        source: 'engine/assets/images/traditional.jpg'
     },
-    
+    {
+        name: 'Mahjong Platinum 2 Dark',
+        author: 'Pavel Osharin',
+        source: 'engine/assets/images/platinum2-dark.jpg'
+    },
+    {
+        name: 'Mahjong Platinum 2 Red',
+        author: 'Pavel Osharin',
+        source: 'engine/assets/images/platinum2-red.jpg'
+    },
+    {
+        name: 'Cards',
+        author: 'My Kyodai Mahjong',
+        source: 'engine/assets/images/cards.jpg'
+    },
+    {
+        name: 'Disney Princess',
+        author: 'My Kyodai Mahjong',
+        source: 'engine/assets/images/disney-princess.jpg'
+    },
     {
         name: 'Teste2',
         author: 'eu',
         source: 'engine/assets/images/imagem2.png'
     },
+
 ];
 
 function resolveImageUrl(url) {

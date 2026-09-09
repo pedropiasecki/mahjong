@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f18" />
+    <title>Mahjong — Meu perfil</title>
+    <link rel="stylesheet" href="../css/profile.css" />
+    <script>
+        // Guarda de autenticação — roda antes de qualquer coisa renderizar.
+        // Sem token salvo, nem entra: manda direto pro login.
+        if (!localStorage.getItem('mahjong:token')) {
+            window.location.replace('login.html');
+        }
+    </script>
+</head>
+
+<body class="profile-body">
+    <div class="profile-shell">
+        <header class="profile-topbar">
+            <div class="brand" aria-label="Mahjong">
+                <span class="brand-mark">麻</span>
+                <span>Mahjong</span>
+            </div>
+            <div class="topbar-links">
+                <a class="link-back" href="ranking.html">Ranking</a>
+                <a class="link-back" href="races.html">Corrida</a>
+                <a class="link-back" href="../index.html">← Voltar ao jogo</a>
+            </div>
+        </header>
+
+        <main class="profile-main">
+            <section class="profile-card" aria-labelledby="profile-display-name">
+                <div id="profile-alert" class="profile-alert" role="alert" hidden></div>
+
+                <div class="avatar-block">
+                    <button type="button" class="avatar-button" id="avatar-button" aria-label="Trocar foto de perfil">
+                        <img id="avatar-preview" class="avatar-image" src="" alt="" hidden />
+                        <span id="avatar-fallback" class="avatar-fallback">?</span>
+                        <span class="avatar-overlay">📷</span>
+                    </button>
+                    <input type="file" id="avatar-input" accept="image/png, image/jpeg, image/webp" hidden />
+                    <p class="avatar-hint">Clique na foto para trocar</p>
+                </div>
+
+                <h1 class="profile-name" id="profile-display-name">Carregando…</h1>
+                <p class="profile-email" id="profile-email"></p>
+
+                <div class="stats-grid" aria-label="Estatísticas do jogador">
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-games">—</span>
+                        <span class="stat-label">Partidas</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-wins">—</span>
+                        <span class="stat-label">Vitórias</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-losses">—</span>
+                        <span class="stat-label">Derrotas</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-winrate">—</span>
+                        <span class="stat-label">Taxa de vitória</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-best-time">—</span>
+                        <span class="stat-label">Melhor tempo</span>
+                    </div>
+                </div>
+
+                <form id="form-profile" class="profile-form" novalidate>
+                    <label class="field">
+                        <span class="field-label">Nome de exibição</span>
+                        <input type="text" id="input-display-name" name="display_name" minlength="2"
+                            placeholder="Como quer ser chamado" />
+                    </label>
+
+                    <label class="field">
+                        <span class="field-label">Bio</span>
+                        <textarea id="input-bio" name="bio" maxlength="280" rows="3"
+                            placeholder="Fale um pouco sobre você (opcional)"></textarea>
+                        <span class="char-counter" id="bio-counter">0 / 280</span>
+                    </label>
+
+                    <button type="submit" class="btn-primary" id="save-button">Salvar alterações</button>
+                </form>
+
+                <button type="button" class="btn-danger-link" id="logout-button">Sair da conta</button>
+            </section>
+        </main>
+    </div>
+
+    <div id="profile-toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (() => {
+            'use strict';
+
+            const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+            const STORAGE_TOKEN_KEY = 'mahjong:token';
+            const STORAGE_USER_KEY = 'mahjong:user';
+            const LOGIN_URL = 'login.html';
+
+            const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+
+            // -----------------------------------------------------------------
+            // Referências DOM
+            // -----------------------------------------------------------------
+            const alertBox = document.getElementById('profile-alert');
+            const toast = document.getElementById('profile-toast');
+            const displayNameHeading = document.getElementById('profile-display-name');
+            const emailText = document.getElementById('profile-email');
+            const avatarButton = document.getElementById('avatar-button');
+            const avatarInput = document.getElementById('avatar-input');
+            const avatarPreview = document.getElementById('avatar-preview');
+            const avatarFallback = document.getElementById('avatar-fallback');
+            const statGames = document.getElementById('stat-games');
+            const statWins = document.getElementById('stat-wins');
+            const statLosses = document.getElementById('stat-losses');
+            const statWinrate = document.getElementById('stat-winrate');
+            const statBestTime = document.getElementById('stat-best-time');
+            const form = document.getElementById('form-profile');
+            const inputDisplayName = document.getElementById('input-display-name');
+            const inputBio = document.getElementById('input-bio');
+            const bioCounter = document.getElementById('bio-counter');
+            const saveButton = document.getElementById('save-button');
+            const logoutButton = document.getElementById('logout-button');
+
+            // -----------------------------------------------------------------
+            // Helpers
+            // -----------------------------------------------------------------
+            function showAlert(message) {
+                alertBox.textContent = message;
+                alertBox.hidden = false;
+            }
+
+            function hideAlert() {
+                alertBox.hidden = true;
+                alertBox.textContent = '';
+            }
+
+            let toastTimer = null;
+            function showToast(message) {
+                toast.textContent = message;
+                toast.classList.add('visible');
+                window.clearTimeout(toastTimer);
+                toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2600);
+            }
+
+            function formatDuration(totalSeconds) {
+                if (totalSeconds === null || totalSeconds === undefined) return '—';
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = Math.floor(totalSeconds % 60);
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            function logout() {
+                localStorage.removeItem(STORAGE_TOKEN_KEY);
+                localStorage.removeItem(STORAGE_USER_KEY);
+                window.location.href = LOGIN_URL;
+            }
+
+            async function apiRequest(path, options = {}) {
+                let response;
+                try {
+                    response = await fetch(`${API_BASE_URL}${path}`, {
+                        ...options,
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            ...(options.headers || {}),
+                        },
+                    });
+                } catch (networkError) {
+                    throw new Error(
+                        `Não foi possível conectar ao servidor em ${API_BASE_URL}. Verifique se o backend está rodando.`
+                    );
+                }
+
+                if (response.status === 401) {
+                    // Token expirado/inválido — não adianta insistir, manda pro login.
+                    logout();
+                    throw new Error('Sessão expirada.');
+                }
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch {
+                    // sem corpo JSON
+                }
+
+                if (!response.ok) {
+                    throw new Error((data && data.message) || `Erro inesperado (${response.status}).`);
+                }
+
+                return data;
+            }
+
+            // -----------------------------------------------------------------
+            // Carregar perfil
+            // -----------------------------------------------------------------
+            function renderProfile(profile) {
+                const name = profile.display_name || 'Jogador sem nome';
+                displayNameHeading.textContent = name;
+                avatarFallback.textContent = name.trim().charAt(0).toUpperCase() || '?';
+
+                if (profile.avatar_url) {
+                    avatarPreview.src = `${API_BASE_URL}${profile.avatar_url}`;
+                    avatarPreview.hidden = false;
+                    avatarFallback.hidden = true;
+                } else {
+                    avatarPreview.hidden = true;
+                    avatarFallback.hidden = false;
+                }
+
+                statGames.textContent = profile.games_played ?? 0;
+                statWins.textContent = profile.wins ?? 0;
+                statLosses.textContent = profile.losses ?? 0;
+                statBestTime.textContent = formatDuration(profile.best_time_seconds);
+
+                const games = profile.games_played ?? 0;
+                const wins = profile.wins ?? 0;
+                statWinrate.textContent = games > 0 ? `${Math.round((wins / games) * 100)}%` : '—';
+
+                inputDisplayName.value = profile.display_name || '';
+                inputBio.value = profile.bio || '';
+                bioCounter.textContent = `${inputBio.value.length} / 280`;
+            }
+
+            // e-mail vem do que foi salvo no login (o /profiles/me não devolve e-mail)
+            const storedUser = JSON.parse(localStorage.getItem(STORAGE_USER_KEY) || 'null');
+            if (storedUser?.email) {
+                emailText.textContent = storedUser.email;
+            }
+
+            apiRequest('/profiles/me')
+                .then(renderProfile)
+                .catch((err) => showAlert(err.message));
+
+            // -----------------------------------------------------------------
+            // Contador da bio
+            // -----------------------------------------------------------------
+            inputBio.addEventListener('input', () => {
+                bioCounter.textContent = `${inputBio.value.length} / 280`;
+            });
+
+            // -----------------------------------------------------------------
+            // Salvar nome/bio
+            // -----------------------------------------------------------------
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                hideAlert();
+
+                const display_name = inputDisplayName.value.trim();
+                if (display_name.length < 2) {
+                    showAlert('O nome de exibição precisa ter ao menos 2 caracteres.');
+                    return;
+                }
+
+                saveButton.disabled = true;
+                saveButton.textContent = 'Salvando…';
+                try {
+                    const profile = await apiRequest('/profiles/me', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ display_name, bio: inputBio.value }),
+                    });
+                    renderProfile(profile);
+                    showToast('Perfil atualizado!');
+                } catch (err) {
+                    showAlert(err.message);
+                } finally {
+                    saveButton.disabled = false;
+                    saveButton.textContent = 'Salvar alterações';
+                }
+            });
+
+            // -----------------------------------------------------------------
+            // Upload de avatar — clicar na foto abre o seletor de arquivo;
+            // ao escolher, envia na hora (sem precisar clicar em "salvar").
+            // -----------------------------------------------------------------
+            avatarButton.addEventListener('click', () => avatarInput.click());
+
+            avatarInput.addEventListener('change', async () => {
+                const file = avatarInput.files[0];
+                if (!file) return;
+
+                hideAlert();
+                const formData = new FormData();
+                formData.append('avatar', file);
+
+                avatarButton.classList.add('is-loading');
+                try {
+                    const profile = await apiRequest('/profiles/me/avatar', {
+                        method: 'PATCH',
+                        body: formData,
+                        // sem Content-Type manual — o browser define o boundary do multipart sozinho
+                    });
+                    renderProfile(profile);
+                    showToast('Foto atualizada!');
+                } catch (err) {
+                    showAlert(err.message);
+                } finally {
+                    avatarButton.classList.remove('is-loading');
+                    avatarInput.value = '';
+                }
+            });
+
+            // -----------------------------------------------------------------
+            // Logout
+            // -----------------------------------------------------------------
+            logoutButton.addEventListener('click', logout);
+        })();
+    </script>
+</body>
+
+</html>

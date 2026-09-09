@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f18" />
+    <title>Mahjong — Corrida</title>
+    <link rel="stylesheet" href="../css/races.css" />
+    <script>
+        if (!localStorage.getItem('mahjong:token')) {
+            window.location.replace('login.html');
+        }
+    </script>
+</head>
+
+<body class="races-body">
+    <div class="races-shell">
+        <header class="races-topbar">
+            <div class="brand" aria-label="Mahjong">
+                <span class="brand-mark">麻</span>
+                <span>Mahjong</span>
+            </div>
+            <div class="topbar-links">
+                <a class="link-back" href="ranking.html">Ranking</a>
+                <a class="link-back" href="../index.html">← Voltar ao jogo</a>
+            </div>
+        </header>
+
+        <main class="races-main">
+            <section class="races-card">
+                <div id="races-alert" class="races-alert" role="alert" hidden></div>
+
+                <!-- ================= LOBBY ================= -->
+                <div id="lobby-view">
+                    <h1 class="races-title">Corrida</h1>
+                    <p class="races-subtitle">Todo mundo resolve o mesmo tabuleiro — quem terminar primeiro
+                        vence.</p>
+
+                    <form id="create-race-form" class="create-race-form">
+                        <label class="field">
+                            <span class="field-label">Mapa</span>
+                            <select id="create-map-select">
+                                <option value="turtle">Tartaruga clássica</option>
+                                <option value="lines">Linhas</option>
+                                <option value="checker">Tabuleiro</option>
+                                <option value="rings">Anéis</option>
+                                <option value="cross">Cruz</option>
+                                <option value="diamond">Diamante</option>
+                                <option value="triangle">Triângulo</option>
+                                <option value="areas">Áreas</option>
+                                <option value="shapes">Formas</option>
+                            </select>
+                        </label>
+                        <button type="submit" class="btn-primary">Criar corrida</button>
+                    </form>
+
+                    <h2 class="races-subheading">Corridas abertas</h2>
+                    <ul id="open-races-list" class="open-races-list"></ul>
+                    <p id="open-races-empty" class="races-empty" hidden>Nenhuma corrida aberta agora — crie uma
+                        acima!</p>
+                </div>
+
+                <!-- ========= SALA DE ESPERA / PLACAR AO VIVO ========= -->
+                <div id="race-view" hidden>
+                    <div class="race-view-header">
+                        <div>
+                            <h1 class="races-title" id="race-view-title">Sala de espera</h1>
+                            <p class="races-subtitle" id="race-view-subtitle"></p>
+                        </div>
+                        <span id="race-status-badge" class="race-status-badge">aguardando</span>
+                    </div>
+
+                    <ul id="race-participants-list" class="race-participants-list"></ul>
+
+                    <div class="race-actions">
+                        <button type="button" id="start-race-button" class="btn-primary" hidden>Iniciar
+                            corrida</button>
+                        <button type="button" id="play-race-button" class="btn-primary" hidden>Jogar agora</button>
+                        <button type="button" id="new-race-button" class="btn-primary" hidden>Criar/entrar em outra
+                            corrida</button>
+                        <button type="button" id="abandon-race-button" class="btn-danger-link" hidden>Desistir da
+                            corrida</button>
+                    </div>
+                    <p id="race-hint" class="races-hint"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            'use strict';
+
+            const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+            const token = localStorage.getItem('mahjong:token');
+            const storedUser = JSON.parse(localStorage.getItem('mahjong:user') || 'null');
+            const CURRENT_RACE_KEY = 'mahjong:currentRaceId';
+
+            const mapNames = {
+                turtle: 'Tartaruga clássica', lines: 'Linhas', checker: 'Tabuleiro', rings: 'Anéis',
+                cross: 'Cruz', diamond: 'Diamante', triangle: 'Triângulo', areas: 'Áreas', shapes: 'Formas',
+            };
+
+            const lobbyView = document.getElementById('lobby-view');
+            const raceView = document.getElementById('race-view');
+            const alertEl = document.getElementById('races-alert');
+
+            let pollTimer = null;
+
+            function showAlert(message) {
+                alertEl.textContent = message;
+                alertEl.hidden = false;
+            }
+            function hideAlert() {
+                alertEl.hidden = true;
+            }
+
+            function formatDuration(totalSeconds) {
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = Math.floor(totalSeconds % 60);
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            async function apiRequest(path, options = {}) {
+                let response;
+                try {
+                    response = await fetch(`${API_BASE_URL}${path}`, {
+                        ...options,
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            ...(options.headers || {}),
+                        },
+                    });
+                } catch (networkError) {
+                    throw new Error(`Não foi possível conectar ao servidor em ${API_BASE_URL}.`);
+                }
+
+                if (response.status === 401) {
+                    localStorage.removeItem('mahjong:token');
+                    localStorage.removeItem('mahjong:user');
+                    window.location.href = 'login.html';
+                    throw new Error('Sessão expirada.');
+                }
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch {
+                    // sem corpo
+                }
+
+                if (!response.ok) {
+                    throw new Error((data && data.message) || `Erro inesperado (${response.status}).`);
+                }
+
+                return data;
+            }
+
+            // -----------------------------------------------------------------
+            // LOBBY
+            // -----------------------------------------------------------------
+            async function loadOpenRaces() {
+                const listEl = document.getElementById('open-races-list');
+                const emptyEl = document.getElementById('open-races-empty');
+                try {
+                    const races = await apiRequest('/races?status=waiting&limit=20');
+                    listEl.innerHTML = '';
+                    emptyEl.hidden = races.length > 0;
+
+                    for (const race of races) {
+                        const li = document.createElement('li');
+                        li.className = 'open-race-row';
+                        const mapLabel = mapNames[race.map_layout] || race.map_layout;
+                        li.innerHTML = `
+                            <span class="open-race-map">${mapLabel}</span>
+                            <span class="open-race-count">${race.participant_count} ${race.participant_count === 1 ? 'jogador' : 'jogadores'}</span>
+                            <button type="button" class="btn-secondary" data-race-id="${race.id}">Entrar</button>
+                        `;
+                        li.querySelector('button').addEventListener('click', () => joinRace(race.id));
+                        listEl.appendChild(li);
+                    }
+                } catch (err) {
+                    showAlert(err.message);
+                }
+            }
+
+            document.getElementById('create-race-form').addEventListener('submit', async event => {
+                event.preventDefault();
+                hideAlert();
+                const map_layout = document.getElementById('create-map-select').value;
+
+                try {
+                    const race = await apiRequest('/races', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ map_layout }),
+                    });
+                    enterRaceView(race.id);
+                } catch (err) {
+                    showAlert(err.message);
+                }
+            });
+
+            async function joinRace(raceId) {
+                hideAlert();
+                try {
+                    await apiRequest(`/races/${raceId}/join`, { method: 'POST' });
+                    enterRaceView(raceId);
+                } catch (err) {
+                    showAlert(err.message);
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // SALA DE ESPERA / PLACAR AO VIVO
+            // -----------------------------------------------------------------
+            function renderParticipants(race) {
+                const listEl = document.getElementById('race-participants-list');
+                listEl.innerHTML = '';
+
+                for (const participant of race.participants) {
+                    const li = document.createElement('li');
+                    li.className = 'race-participant-row';
+                    if (storedUser && participant.user_id === storedUser.id) {
+                        li.classList.add('is-me');
+                    }
+
+                    const name = participant.display_name || 'Jogador sem nome';
+                    const initial = name.trim().charAt(0).toUpperCase() || '?';
+
+                    let statusHtml = '🏃 correndo';
+                    let statusClass = 'is-racing';
+                    if (participant.status === 'finished') {
+                        statusHtml = `🏁 #${participant.placement} — ${formatDuration(participant.duration_seconds)}`;
+                        statusClass = 'is-finished';
+                    } else if (participant.status === 'abandoned') {
+                        statusHtml = '🚪 desistiu';
+                        statusClass = 'is-abandoned';
+                    }
+
+                    li.innerHTML = `
+                        <span class="race-participant-avatar">
+                            ${participant.avatar_url
+                            ? `<img src="${API_BASE_URL}${participant.avatar_url}" alt="" />`
+                            : `<span class="race-participant-avatar-fallback">${initial}</span>`}
+                        </span>
+                        <span class="race-participant-name">${name}${storedUser && participant.user_id === storedUser.id ? ' (você)' : ''}</span>
+                        <span class="race-participant-status ${statusClass}">${statusHtml}</span>
+                    `;
+                    listEl.appendChild(li);
+                }
+            }
+
+            function renderRaceState(race) {
+                const titleEl = document.getElementById('race-view-title');
+                const subtitleEl = document.getElementById('race-view-subtitle');
+                const badgeEl = document.getElementById('race-status-badge');
+                const startButton = document.getElementById('start-race-button');
+                const playButton = document.getElementById('play-race-button');
+                const newRaceButton = document.getElementById('new-race-button');
+                const abandonButton = document.getElementById('abandon-race-button');
+                const hintEl = document.getElementById('race-hint');
+                const mapLabel = mapNames[race.map_layout] || race.map_layout;
+
+                badgeEl.className = `race-status-badge status-${race.status}`;
+                badgeEl.textContent = { waiting: 'aguardando', running: 'em andamento', finished: 'encerrada' }[race.status];
+
+                const isCreator = storedUser && race.created_by === storedUser.id;
+                const myParticipant = storedUser && race.participants.find(p => p.user_id === storedUser.id);
+                const iAmStillRacing = myParticipant && myParticipant.status === 'racing';
+
+                // Só posso desistir enquanto ainda estou "correndo" e a
+                // corrida em si não terminou (não faz sentido desistir de
+                // uma corrida já encerrada).
+                abandonButton.hidden = !(iAmStillRacing && race.status !== 'finished');
+                newRaceButton.hidden = race.status !== 'finished';
+
+                if (race.status === 'waiting') {
+                    titleEl.textContent = 'Sala de espera';
+                    subtitleEl.textContent = `Mapa: ${mapLabel}`;
+                    startButton.hidden = !isCreator;
+                    playButton.hidden = true;
+                    hintEl.textContent = isCreator
+                        ? 'Espere os outros jogadores entrarem e clique em "Iniciar corrida" quando quiser começar.'
+                        : 'Aguardando quem criou a corrida iniciar...';
+                } else if (race.status === 'running') {
+                    titleEl.textContent = 'Corrida em andamento';
+                    subtitleEl.textContent = `Mapa: ${mapLabel} — placar ao vivo`;
+                    startButton.hidden = true;
+                    playButton.hidden = !iAmStillRacing;
+                    hintEl.textContent = iAmStillRacing
+                        ? 'Clique em "Jogar agora" pra resolver o tabuleiro — todo mundo aqui recebe exatamente o mesmo tabuleiro.'
+                        : '';
+                } else {
+                    titleEl.textContent = '🏆 Corrida encerrada';
+                    subtitleEl.textContent = `Mapa: ${mapLabel} — resultado final`;
+                    startButton.hidden = true;
+                    playButton.hidden = true;
+                    hintEl.textContent = 'Quer jogar de novo? Crie uma corrida nova ou entre em outra já aberta.';
+                    stopPolling();
+                }
+
+                renderParticipants(race);
+            }
+
+            async function pollRace(raceId) {
+                try {
+                    const race = await apiRequest(`/races/${raceId}`);
+                    renderRaceState(race);
+                } catch (err) {
+                    stopPolling();
+                    localStorage.removeItem(CURRENT_RACE_KEY);
+                    showAlert(err.message);
+                    showView('lobby');
+                }
+            }
+
+            function startPolling(raceId) {
+                stopPolling();
+                pollRace(raceId);
+                pollTimer = window.setInterval(() => pollRace(raceId), 3000);
+            }
+
+            function stopPolling() {
+                if (pollTimer) {
+                    window.clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+            }
+
+            document.getElementById('start-race-button').addEventListener('click', async () => {
+                const raceId = localStorage.getItem(CURRENT_RACE_KEY);
+                hideAlert();
+                try {
+                    await apiRequest(`/races/${raceId}/start`, { method: 'POST' });
+                    pollRace(raceId);
+                } catch (err) {
+                    showAlert(err.message);
+                }
+            });
+
+            document.getElementById('play-race-button').addEventListener('click', () => {
+                const raceId = localStorage.getItem(CURRENT_RACE_KEY);
+                window.location.href = `../index.html?race=${raceId}`;
+            });
+
+            document.getElementById('new-race-button').addEventListener('click', () => {
+                stopPolling();
+                localStorage.removeItem(CURRENT_RACE_KEY);
+                showView('lobby');
+                loadOpenRaces();
+            });
+
+            document.getElementById('abandon-race-button').addEventListener('click', async () => {
+                const raceId = localStorage.getItem(CURRENT_RACE_KEY);
+                if (!window.confirm('Tem certeza que quer desistir dessa corrida? Você sai da disputa e não recebe colocação.')) {
+                    return;
+                }
+                hideAlert();
+                try {
+                    await apiRequest(`/races/${raceId}/abandon`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({}),
+                    });
+                    stopPolling();
+                    localStorage.removeItem(CURRENT_RACE_KEY);
+                    showView('lobby');
+                    loadOpenRaces();
+                } catch (err) {
+                    showAlert(err.message);
+                }
+            });
+
+            // -----------------------------------------------------------------
+            // Navegação entre lobby e sala/placar
+            // -----------------------------------------------------------------
+            function showView(name) {
+                lobbyView.hidden = name !== 'lobby';
+                raceView.hidden = name !== 'race';
+            }
+
+            function enterRaceView(raceId) {
+                hideAlert();
+                localStorage.setItem(CURRENT_RACE_KEY, raceId);
+                showView('race');
+                startPolling(raceId);
+            }
+
+            // Se já tinha uma corrida em andamento (ex.: deu refresh na página),
+            // volta direto pra ela em vez de mostrar o lobby.
+            const existingRaceId = localStorage.getItem(CURRENT_RACE_KEY);
+            if (existingRaceId) {
+                showView('race');
+                startPolling(existingRaceId);
+            } else {
+                showView('lobby');
+                loadOpenRaces();
+            }
+        })();
+    </script>
+</body>
+
+</html>

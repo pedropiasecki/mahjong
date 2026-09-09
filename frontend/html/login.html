@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f18" />
+    <title>Mahjong — Entrar ou criar conta</title>
+    <link rel="stylesheet" href="../css/auth.css" />
+</head>
+
+<body class="auth-body">
+    <div class="auth-shell">
+        <header class="auth-topbar">
+            <div class="brand" aria-label="Mahjong">
+                <span class="brand-mark">麻</span>
+                <span>Mahjong</span>
+            </div>
+        </header>
+
+        <main class="auth-main">
+            <div class="auth-scene" aria-hidden="true">
+                <span class="ghost-tile ghost-tile--a">麻</span>
+                <span class="ghost-tile ghost-tile--b">將</span>
+                <span class="ghost-tile ghost-tile--c">中</span>
+            </div>
+
+            <section class="auth-card" aria-labelledby="auth-heading">
+                <div class="auth-tabs" role="tablist" aria-label="Alternar entre entrar e criar conta">
+                    <button type="button" class="auth-tab is-active" id="tab-login" role="tab" aria-selected="true"
+                        aria-controls="panel-login">Entrar</button>
+                    <button type="button" class="auth-tab" id="tab-signup" role="tab" aria-selected="false"
+                        aria-controls="panel-signup">Criar conta</button>
+                    <span class="auth-tab-indicator" id="tab-indicator" aria-hidden="true"></span>
+                </div>
+
+                <h1 id="auth-heading" class="auth-heading">Bem-vindo de volta</h1>
+                <p class="auth-subheading" id="auth-subheading">Entre para continuar sua partida e disputar o ranking.
+                </p>
+
+                <div id="auth-alert" class="auth-alert" role="alert" hidden></div>
+
+                <!-- Formulário de login -->
+                <form id="panel-login" class="auth-form" novalidate role="tabpanel"
+                    aria-labelledby="tab-login">
+                    <label class="field">
+                        <span class="field-label">E-mail</span>
+                        <input type="email" name="email" id="login-email" placeholder="voce@exemplo.com" autocomplete="email"
+                            required />
+                        <span class="field-error" id="login-email-error"></span>
+                    </label>
+
+                    <label class="field">
+                        <span class="field-label">Senha</span>
+                        <div class="password-wrap">
+                            <input type="password" name="password" id="login-password" placeholder="••••••••"
+                                autocomplete="current-password" required minlength="6" />
+                            <button type="button" class="toggle-visibility" data-target="login-password"
+                                aria-label="Mostrar senha">👁</button>
+                        </div>
+                        <span class="field-error" id="login-password-error"></span>
+                    </label>
+
+                    <label class="remember-row">
+                        <span class="checkbox-row">
+                            <input type="checkbox" id="login-remember" />
+                            <span>Lembrar de mim</span>
+                        </span>
+                        <a href="#" class="link-muted" id="forgot-password">Esqueci a senha</a>
+                    </label>
+
+                    <button type="submit" class="btn-primary">Entrar</button>
+                </form>
+
+                <!-- Formulário de cadastro -->
+                <form id="panel-signup" class="auth-form" novalidate hidden role="tabpanel"
+                    aria-labelledby="tab-signup">
+                    <label class="field">
+                        <span class="field-label">Nome de jogador</span>
+                        <input type="text" name="name" id="signup-name" placeholder="Como você quer ser chamado"
+                            autocomplete="nickname" required minlength="2" />
+                        <span class="field-error" id="signup-name-error"></span>
+                    </label>
+
+                    <label class="field">
+                        <span class="field-label">E-mail</span>
+                        <input type="email" name="email" id="signup-email" placeholder="voce@exemplo.com"
+                            autocomplete="email" required />
+                        <span class="field-error" id="signup-email-error"></span>
+                    </label>
+
+                    <label class="field">
+                        <span class="field-label">Senha</span>
+                        <div class="password-wrap">
+                            <input type="password" name="password" id="signup-password" placeholder="Mínimo de 6 caracteres"
+                                autocomplete="new-password" required minlength="6" />
+                            <button type="button" class="toggle-visibility" data-target="signup-password"
+                                aria-label="Mostrar senha">👁</button>
+                        </div>
+                        <div class="strength-meter" aria-hidden="true">
+                            <span id="strength-bar"></span>
+                        </div>
+                        <span class="field-error" id="signup-password-error"></span>
+                    </label>
+
+                    <label class="field">
+                        <span class="field-label">Confirmar senha</span>
+                        <div class="password-wrap">
+                            <input type="password" name="confirm" id="signup-confirm" placeholder="Repita a senha"
+                                autocomplete="new-password" required minlength="6" />
+                            <button type="button" class="toggle-visibility" data-target="signup-confirm"
+                                aria-label="Mostrar senha">👁</button>
+                        </div>
+                        <span class="field-error" id="signup-confirm-error"></span>
+                    </label>
+
+                    <label class="checkbox-row terms-row">
+                        <input type="checkbox" id="signup-terms" required />
+                        <span>Concordo com os termos de uso e a política de privacidade</span>
+                    </label>
+                    <span class="field-error" id="signup-terms-error"></span>
+
+                    <button type="submit" class="btn-primary">Criar conta</button>
+                </form>
+
+                <p class="auth-switch">
+                    <span id="switch-text">Ainda não tem conta?</span>
+                    <button type="button" class="link-strong" id="switch-action">Criar conta</button>
+                </p>
+            </section>
+        </main>
+
+        <footer class="auth-footer">
+            <span>© 2026 Mahjong · Ranking, corrida e partidas multiplayer</span>
+        </footer>
+    </div>
+
+    <div id="auth-toast" class="toast" role="status" aria-live="polite"></div>
+    <script>
+        // =====================================================================
+        // Login / cadastro — liga esta tela ao backend real
+        // (src/modules/sessions e src/modules/users, Express + TypeORM).
+        //
+        // Endpoints consumidos:
+        //   POST {API_BASE_URL}/sessions  { email, password }        -> { user, token }
+        //   POST {API_BASE_URL}/users     { name, email, password }  -> user (201)
+        //
+        // Pré-requisito: backend rodando (npm run dev, porta 3333 por padrão)
+        // e Postgres configurado em src/shared/typeorm/data-source.ts.
+        // =====================================================================
+        (() => {
+            'use strict';
+
+            // Permite trocar a URL da API sem editar este arquivo, definindo
+            // `window.MAHJONG_API_URL = "http://meu-servidor:3333"` antes deste script.
+            const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+
+            const STORAGE_TOKEN_KEY = 'mahjong:token';
+            const STORAGE_USER_KEY = 'mahjong:user';
+
+            const REDIRECT_URL = '../index.html';
+
+            // -----------------------------------------------------------------
+            // Referências DOM
+            // -----------------------------------------------------------------
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+            const formLogin = document.getElementById('panel-login');
+            const formSignup = document.getElementById('panel-signup');
+            const heading = document.getElementById('auth-heading');
+            const subheading = document.getElementById('auth-subheading');
+            const switchText = document.getElementById('switch-text');
+            const switchAction = document.getElementById('switch-action');
+            const tabIndicator = document.getElementById('tab-indicator');
+            const alertBox = document.getElementById('auth-alert');
+            const toast = document.getElementById('auth-toast');
+
+            const COPY = {
+                login: {
+                    heading: 'Bem-vindo de volta',
+                    subheading: 'Entre para continuar sua partida e disputar o ranking.',
+                    switchText: 'Ainda não tem conta?',
+                    switchAction: 'Criar conta',
+                },
+                signup: {
+                    heading: 'Crie sua conta',
+                    subheading: 'Cadastre-se para salvar seu progresso e entrar na corrida.',
+                    switchText: 'Já tem uma conta?',
+                    switchAction: 'Entrar',
+                },
+            };
+
+            // -----------------------------------------------------------------
+            // Navegação entre abas (login / cadastro)
+            // -----------------------------------------------------------------
+            function setMode(mode) {
+                const isLogin = mode === 'login';
+                tabLogin.classList.toggle('is-active', isLogin);
+                tabSignup.classList.toggle('is-active', !isLogin);
+                tabLogin.setAttribute('aria-selected', String(isLogin));
+                tabSignup.setAttribute('aria-selected', String(!isLogin));
+                tabIndicator.classList.toggle('is-right', !isLogin);
+
+                formLogin.hidden = !isLogin;
+                formSignup.hidden = isLogin;
+
+                const copy = isLogin ? COPY.login : COPY.signup;
+                heading.textContent = copy.heading;
+                subheading.textContent = copy.subheading;
+                switchText.textContent = copy.switchText;
+                switchAction.textContent = copy.switchAction;
+
+                hideAlert();
+            }
+
+            tabLogin.addEventListener('click', () => setMode('login'));
+            tabSignup.addEventListener('click', () => setMode('signup'));
+            switchAction.addEventListener('click', () => {
+                setMode(formLogin.hidden ? 'login' : 'signup');
+            });
+
+            // -----------------------------------------------------------------
+            // Mostrar/ocultar senha
+            // -----------------------------------------------------------------
+            document.querySelectorAll('.toggle-visibility').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const input = document.getElementById(btn.dataset.target);
+                    const isPassword = input.type === 'password';
+                    input.type = isPassword ? 'text' : 'password';
+                    btn.textContent = isPassword ? '🙈' : '👁';
+                    btn.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
+                });
+            });
+
+            // -----------------------------------------------------------------
+            // Alertas, erros de campo e toast
+            // -----------------------------------------------------------------
+            function showAlert(message) {
+                alertBox.textContent = message;
+                alertBox.hidden = false;
+            }
+
+            function hideAlert() {
+                alertBox.hidden = true;
+                alertBox.textContent = '';
+            }
+
+            function setFieldError(inputId, errorId, message) {
+                const input = document.getElementById(inputId);
+                const error = document.getElementById(errorId);
+                input.classList.toggle('has-error', Boolean(message));
+                error.textContent = message || '';
+            }
+
+            function isValidEmail(value) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+            }
+
+            let toastTimer = null;
+            function showToast(message) {
+                toast.textContent = message;
+                toast.classList.add('visible');
+                window.clearTimeout(toastTimer);
+                toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2600);
+            }
+
+            function setLoading(form, isLoading) {
+                const button = form.querySelector('.btn-primary');
+                if (!button) return;
+                button.disabled = isLoading;
+                button.dataset.originalText = button.dataset.originalText || button.textContent;
+                button.textContent = isLoading ? 'Aguarde…' : button.dataset.originalText;
+            }
+
+            // -----------------------------------------------------------------
+            // Camada de API — fala com o backend Express (sessions / users)
+            // -----------------------------------------------------------------
+            async function apiPost(path, body) {
+                let response;
+                try {
+                    response = await fetch(`${API_BASE_URL}${path}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+                } catch (networkError) {
+                    throw new Error(
+                        `Não foi possível conectar ao servidor em ${API_BASE_URL}. Verifique se o backend está rodando (npm run dev).`
+                    );
+                }
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch {
+                    // resposta sem corpo (ex.: 204) — segue com data = null
+                }
+
+                if (!response.ok) {
+                    throw new Error(extractErrorMessage(data, response.status));
+                }
+
+                return data;
+            }
+
+            // Traduz os formatos de erro conhecidos da API:
+            //  - AppError:            { status: 'error', message: '...' }
+            //  - celebrate (Joi):     { validation: { body: { message: '...' } } }
+            //  - fallback genérico por status HTTP
+            function extractErrorMessage(data, status) {
+                if (data && data.validation) {
+                    const firstKey = Object.keys(data.validation)[0];
+                    const detail = firstKey && data.validation[firstKey];
+                    if (detail && detail.message) {
+                        return friendlyValidationMessage(detail.message);
+                    }
+                }
+                if (data && data.message) {
+                    return friendlyValidationMessage(data.message);
+                }
+                if (status === 401) return 'E-mail ou senha incorretos.';
+                if (status === 400) return 'Não foi possível concluir a solicitação. Confira os dados informados.';
+                return `Erro inesperado no servidor (código ${status}).`;
+            }
+
+            // Deixa as mensagens cruas do Joi/celebrate um pouco mais amigáveis,
+            // sem esconder a causa real do erro.
+            function friendlyValidationMessage(message) {
+                if (/"email".*required/i.test(message)) return 'Informe seu e-mail.';
+                if (/"password".*required/i.test(message)) return 'Informe sua senha.';
+                if (/"name".*required/i.test(message)) return 'Informe seu nome de jogador.';
+                if (/"password".*length must be at least/i.test(message)) return 'A senha deve ter ao menos 6 caracteres.';
+                if (/"name".*length must be at least/i.test(message)) return 'O nome deve ter ao menos 2 caracteres.';
+                if (/"email".*valid/i.test(message)) return 'Informe um e-mail válido.';
+                return message.replace(/"/g, '');
+            }
+
+            async function loginRequest(email, password) {
+                return apiPost('/sessions', { email, password });
+            }
+
+            async function registerRequest(name, email, password) {
+                return apiPost('/users', { name, email, password });
+            }
+
+            function persistSession(user, token) {
+                localStorage.setItem(STORAGE_TOKEN_KEY, token);
+                localStorage.setItem(
+                    STORAGE_USER_KEY,
+                    JSON.stringify({ id: user.id, name: user.name, email: user.email, status: user.status })
+                );
+            }
+
+            function goToGame() {
+                window.location.href = REDIRECT_URL;
+            }
+
+            // -----------------------------------------------------------------
+            // Força de senha (feedback visual, cadastro)
+            // -----------------------------------------------------------------
+            const strengthBar = document.getElementById('strength-bar');
+            document.getElementById('signup-password').addEventListener('input', (event) => {
+                const value = event.target.value;
+                let score = 0;
+                if (value.length >= 6) score++;
+                if (value.length >= 10) score++;
+                if (/[A-Z]/.test(value) && /[0-9]/.test(value)) score++;
+                if (/[^A-Za-z0-9]/.test(value)) score++;
+
+                strengthBar.className = '';
+                strengthBar.classList.add(['weak', 'weak', 'medium', 'strong', 'strong'][score]);
+            });
+
+            // -----------------------------------------------------------------
+            // Envio — Login
+            // -----------------------------------------------------------------
+            formLogin.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                hideAlert();
+
+                const email = document.getElementById('login-email').value.trim();
+                const password = document.getElementById('login-password').value;
+                let valid = true;
+
+                if (!isValidEmail(email)) {
+                    setFieldError('login-email', 'login-email-error', 'Informe um e-mail válido.');
+                    valid = false;
+                } else {
+                    setFieldError('login-email', 'login-email-error', '');
+                }
+
+                if (password.length < 6) {
+                    setFieldError('login-password', 'login-password-error', 'A senha deve ter ao menos 6 caracteres.');
+                    valid = false;
+                } else {
+                    setFieldError('login-password', 'login-password-error', '');
+                }
+
+                if (!valid) return;
+
+                setLoading(formLogin, true);
+                try {
+                    const { user, token } = await loginRequest(email, password);
+                    persistSession(user, token);
+                    showToast('Entrando…');
+                    window.setTimeout(goToGame, 400);
+                } catch (err) {
+                    showAlert(err.message);
+                } finally {
+                    setLoading(formLogin, false);
+                }
+            });
+
+            // -----------------------------------------------------------------
+            // Envio — Cadastro
+            // -----------------------------------------------------------------
+            formSignup.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                hideAlert();
+
+                const name = document.getElementById('signup-name').value.trim();
+                const email = document.getElementById('signup-email').value.trim();
+                const password = document.getElementById('signup-password').value;
+                const confirm = document.getElementById('signup-confirm').value;
+                const acceptedTerms = document.getElementById('signup-terms').checked;
+                const termsError = document.getElementById('signup-terms-error');
+                let valid = true;
+
+                if (name.length < 2) {
+                    setFieldError('signup-name', 'signup-name-error', 'Informe um nome com ao menos 2 caracteres.');
+                    valid = false;
+                } else {
+                    setFieldError('signup-name', 'signup-name-error', '');
+                }
+
+                if (!isValidEmail(email)) {
+                    setFieldError('signup-email', 'signup-email-error', 'Informe um e-mail válido.');
+                    valid = false;
+                } else {
+                    setFieldError('signup-email', 'signup-email-error', '');
+                }
+
+                if (password.length < 6) {
+                    setFieldError('signup-password', 'signup-password-error', 'A senha deve ter ao menos 6 caracteres.');
+                    valid = false;
+                } else {
+                    setFieldError('signup-password', 'signup-password-error', '');
+                }
+
+                if (confirm !== password || confirm.length === 0) {
+                    setFieldError('signup-confirm', 'signup-confirm-error', 'As senhas não coincidem.');
+                    valid = false;
+                } else {
+                    setFieldError('signup-confirm', 'signup-confirm-error', '');
+                }
+
+                if (!acceptedTerms) {
+                    termsError.textContent = 'É necessário aceitar os termos para continuar.';
+                    valid = false;
+                } else {
+                    termsError.textContent = '';
+                }
+
+                if (!valid) return;
+
+                setLoading(formSignup, true);
+                try {
+                    // 1) cria o usuário no backend (já com o nome do jogador)
+                    await registerRequest(name, email, password);
+
+                    // 2) o endpoint de cadastro não devolve token, então login em seguida
+                    const { user, token } = await loginRequest(email, password);
+                    persistSession(user, token);
+
+                    showToast('Conta criada com sucesso!');
+                    window.setTimeout(goToGame, 500);
+                } catch (err) {
+                    showAlert(err.message);
+                } finally {
+                    setLoading(formSignup, false);
+                }
+            });
+
+            setMode('login');
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,39 +1,231 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
+
 <head>
-	<meta charset="UTF-8" />
-	<title>Mahjong — demo do motor</title>
-	<link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f18" />
+    <title>Mahjong — Mesa de jogo</title>
+    <link rel="stylesheet" href="style.css" />
+    <script>
+        // Guarda de autenticação — sem token salvo, nem carrega o jogo:
+        // manda direto pro login.
+        if (!localStorage.getItem('mahjong:token')) {
+            window.location.replace('html/login.html');
+        }
+    </script>
 </head>
+
 <body>
-	<header>
-		<h1>Mahjong</h1>
-		<div class="hud">
-			<span>Tempo: <strong id="time">00:00</strong></span>
-			<span>Status: <strong id="status">parado</strong></span>
-			<span id="combo" class="combo"></span>
-		</div>
-	</header>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand" aria-label="Mahjong">
+                <span class="brand-mark">麻</span>
+                <span>Mahjong</span>
+            </div>
 
-	<main>
-    <div class="game-area">
-        <div id="board"></div>
+            <div class="main-nav" aria-label="Menu principal">
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="game-menu" type="button" aria-expanded="false">Jogo
+                        <span>⌄</span></button>
+                    <div class="menu-panel" id="game-menu" hidden>
+                        <button type="button" data-action="new">Novo jogo</button>
+                        <button type="button" data-action="pause" id="pause-action">Pausar</button>
+                        <button type="button" data-action="hint">Dica</button>
+                        <button type="button" data-action="undo">Desfazer movimento</button>
+                        <button type="button" data-action="shuffle">Embaralhar</button>
+                    </div>
+                </div>
 
-        <div class="game-controls">
-            <button id="reset-button" type="button">
-                Resetar
-            </button>
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="tools-menu" type="button" aria-expanded="false">Ferramentas
+                        <span>⌄</span></button>
+                    <div class="menu-panel" id="tools-menu" hidden>
+                        <button type="button" data-action="hint">Encontrar uma jogada</button>
+                        <button type="button" data-action="clear-selection">Limpar seleção</button>
+                        <button type="button" data-action="fullscreen">Tela cheia</button>
+                    </div>
+                </div>
 
-            <select id="difficulty">
-                <option selected disabled>Selecionar dificuldade</option>
-                <option value="normal">Normal</option>
-                <option value="dificil">Difícil</option>
-                <option value="extremo">Extremo</option>
-            </select>
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="settings-menu" type="button"
+                        aria-expanded="false">Configurações <span>⌄</span></button>
+                    <div class="menu-panel settings-panel" id="settings-menu" hidden>
+                        <label class="setting-row"><span>Mostrar relógio</span><input id="clock-toggle" type="checkbox"
+                                checked></label>
+                        <label class="setting-row"><span>Sons</span><input id="sound-toggle" type="checkbox"
+                                checked></label>
+                        <label class="setting-row"><span>Modo compacto</span><input id="compact-toggle"
+                                type="checkbox"></label>
+                    </div>
+                </div>
+
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="theme-menu" type="button" aria-expanded="false">Tema
+                        <span>⌄</span></button>
+                    <div class="menu-panel theme-panel" id="theme-menu" hidden>
+                        <div class="menu-section-title">Tema da interface</div>
+                        <button type="button" data-theme="dark">Escuro</button>
+                        <button type="button" data-theme="midnight">Midnight</button>
+                        <button type="button" data-theme="light">Claro</button>
+                        <button type="button" data-theme="sage">Sálvia</button>
+                        <div class="menu-divider"></div>
+                        <label class="menu-select-row tileset-row">
+                            <span>Tema das peças</span>
+                            <select id="tileset-select" aria-label="Tema das peças"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="nav-menu">
+                    <button class="nav-button" data-menu="map-menu" type="button" aria-expanded="false">Mapa
+                        <span>⌄</span></button>
+                    <div class="menu-panel" id="map-menu" hidden>
+                        <button type="button" data-map="turtle">Tartaruga clássica</button>
+                        <button type="button" data-map="lines">Linhas</button>
+                        <button type="button" data-map="checker">Tabuleiro</button>
+                        <button type="button" data-map="rings">Anéis</button>
+                        <button type="button" data-map="cross">Cruz</button>
+                        <button type="button" data-map="diamond">Diamante</button>
+                        <button type="button" data-map="triangle">Triângulo</button>
+                        <button type="button" data-map="areas">Áreas</button>
+                        <button type="button" data-map="shapes">Formas</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats" aria-label="Informações da partida">
+                <div class="stat" title="Pedras restantes no tabuleiro">
+                    <span class="stat-label">Pedras</span>
+                    <strong id="stones-count">144</strong>
+                </div>
+                <div class="stat" title="Movimentos realizados">
+                    <span class="stat-label">Movimentos</span>
+                    <strong id="moves-count">0</strong>
+                </div>
+                <div class="stat" title="Pares que podem ser combinados agora no tabuleiro">
+                    <span class="stat-label">Jogadas possíveis</span>
+                    <strong id="possible-moves-count">0</strong>
+                </div>
+                <div class="stat clock-stat" id="clock-stat">
+                    <span class="stat-label">Tempo</span>
+                    <strong id="time">00:00</strong>
+                </div>
+                <span id="status" class="status-pill pronto">Pronto</span>
+                <span id="race-mode-badge" class="race-mode-badge" hidden>🏁 Modo corrida</span>
+                <button type="button" id="abandon-race-in-game-button" class="nav-button abandon-race-button"
+                    hidden>Desistir da corrida</button>
+            </div>
+
+            <div class="nav-menu account-menu">
+                <button class="nav-button account-button" data-menu="account-menu" type="button"
+                    aria-expanded="false">
+                    <img id="topbar-avatar-img" class="topbar-avatar" src="" alt="" hidden />
+                    <span id="topbar-avatar-fallback" class="topbar-avatar topbar-avatar-fallback">?</span>
+                    <span id="topbar-display-name">Perfil</span>
+                    <span>⌄</span>
+                </button>
+                <div class="menu-panel menu-panel--right" id="account-menu" hidden>
+                    <a href="html/profile.html">Ver perfil</a>
+                    <a href="html/ranking.html">Ranking</a>
+                    <a href="html/races.html">Corrida</a>
+                    <button type="button" id="logout-action">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="game-main">
+            <section class="board-stage" aria-label="Tabuleiro de Mahjong">
+                <div class="board-frame" id="board-frame">
+                    <div class="board-watermark">MAHJONG</div>
+                    <div id="board" role="grid" aria-label="Peças do tabuleiro"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="game-over-modal" class="game-over-overlay" hidden>
+        <div class="game-over-card" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
+            <span id="game-over-icon" class="game-over-icon" aria-hidden="true">🏆</span>
+            <h2 id="game-over-title" class="game-over-title">Vitória!</h2>
+            <p id="game-over-message" class="game-over-message"></p>
+            <div id="game-over-stats" class="game-over-stats"></div>
+            <div class="game-over-actions">
+                <button type="button" class="btn-primary" id="game-over-replay">Jogar novamente</button>
+                <button type="button" class="btn-secondary" id="game-over-close">Fechar</button>
+            </div>
         </div>
     </div>
-</main>
 
-	<script type="module" src="./main.js"></script>
+    <div id="stuck-modal" class="game-over-overlay is-lost" hidden>
+        <div class="game-over-card" role="dialog" aria-modal="true" aria-labelledby="stuck-title">
+            <span class="game-over-icon" aria-hidden="true">🔒</span>
+            <h2 id="stuck-title" class="game-over-title">Tabuleiro travado</h2>
+            <p class="game-over-message">Não sobrou nenhum par possível com as peças atuais. Escolha como continuar: embaralhar conta como derrota no seu perfil (mas a partida segue), desfazer volta à jogada anterior, ou finalize agora.</p>
+            <div id="stuck-stats" class="game-over-stats"></div>
+            <div class="game-over-actions">
+                <button type="button" class="btn-primary" id="stuck-shuffle">Embaralhar peças restantes</button>
+                <button type="button" class="btn-secondary" id="stuck-undo">Desfazer última jogada</button>
+                <button type="button" class="btn-tertiary" id="stuck-finish">Finalizar partida</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="race-countdown-overlay" class="race-countdown-overlay" hidden>
+        <div class="race-countdown-content">
+            <span class="race-countdown-label">A corrida começa em</span>
+            <span id="race-countdown-number" class="race-countdown-number">5</span>
+        </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+    <script>
+        // Só popula o chip de conta (avatar/nome) e cuida do logout — não
+        // encosta em nada do motor do jogo (isso é o main.js).
+        (() => {
+            'use strict';
+
+            const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
+            const token = localStorage.getItem('mahjong:token');
+
+            document.getElementById('logout-action').addEventListener('click', () => {
+                localStorage.removeItem('mahjong:token');
+                localStorage.removeItem('mahjong:user');
+                window.location.href = 'html/login.html';
+            });
+
+            if (!token) return;
+
+            fetch(`${API_BASE_URL}/profiles/me`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+                .then((response) => (response.ok ? response.json() : null))
+                .then((profile) => {
+                    if (!profile) return;
+
+                    const nameEl = document.getElementById('topbar-display-name');
+                    const imgEl = document.getElementById('topbar-avatar-img');
+                    const fallbackEl = document.getElementById('topbar-avatar-fallback');
+
+                    const name = profile.display_name || 'Perfil';
+                    nameEl.textContent = name;
+
+                    if (profile.avatar_url) {
+                        imgEl.src = `${API_BASE_URL}${profile.avatar_url}`;
+                        imgEl.hidden = false;
+                        fallbackEl.hidden = true;
+                    } else {
+                        fallbackEl.textContent = name.trim().charAt(0).toUpperCase() || '?';
+                    }
+                })
+                .catch(() => {
+                    // Sem conexão com o backend agora — o jogo continua funcionando
+                    // normalmente, só o chip de conta fica no estado padrão.
+                });
+        })();
+    </script>
 </body>
+
 </html>
