@@ -112,6 +112,9 @@
                     <strong id="time">00:00</strong>
                 </div>
                 <span id="status" class="status-pill pronto">Pronto</span>
+                <span id="race-mode-badge" class="race-mode-badge" hidden>🏁 Modo corrida</span>
+                <button type="button" id="abandon-race-in-game-button" class="nav-button abandon-race-button"
+                    hidden>Desistir da corrida</button>
             </div>
 
             <div class="nav-menu account-menu">
@@ -125,6 +128,7 @@
                 <div class="menu-panel menu-panel--right" id="account-menu" hidden>
                     <a href="html/profile.html">Ver perfil</a>
                     <a href="html/ranking.html">Ranking</a>
+                    <a href="html/races.html">Corrida</a>
                     <button type="button" id="logout-action">Sair</button>
                 </div>
             </div>
@@ -166,6 +170,13 @@
                 <button type="button" class="btn-secondary" id="stuck-undo">Desfazer última jogada</button>
                 <button type="button" class="btn-tertiary" id="stuck-finish">Finalizar partida</button>
             </div>
+        </div>
+    </div>
+
+    <div id="race-countdown-overlay" class="race-countdown-overlay" hidden>
+        <div class="race-countdown-content">
+            <span class="race-countdown-label">A corrida começa em</span>
+            <span id="race-countdown-number" class="race-countdown-number">5</span>
         </div>
     </div>
 

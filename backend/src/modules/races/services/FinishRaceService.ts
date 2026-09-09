@@ -43,16 +43,20 @@ export default class FinishRaceService {
 			if (!participant) {
 				throw new AppError('You are not part of this race', 403);
 			}
-			if (participant.finished_at) {
-				throw new AppError('You already finished this race');
+			if (participant.status !== 'racing') {
+				throw new AppError('You already finished or left this race');
 			}
 
+			// Só conta quem TERMINOU de verdade — quem desistiu não deve
+			// "furar fila" na numeração de colocação de quem ainda está
+			// disputando.
 			const alreadyFinished = await participantRepository
 				.createQueryBuilder('rp')
 				.where('rp.race_id = :race_id', { race_id })
-				.andWhere('rp.finished_at IS NOT NULL')
+				.andWhere("rp.status = 'finished'")
 				.getCount();
 
+			participant.status = 'finished';
 			participant.duration_seconds = duration_seconds;
 			participant.moves_count = moves_count;
 			participant.bonus_points = bonus_points;
@@ -73,10 +77,15 @@ export default class FinishRaceService {
 				result: 'won',
 			});
 
-			// Se todo mundo que entrou já terminou, encerra a corrida.
-			const totalParticipants = await participantRepository.count({ where: { race_id } });
-			const totalFinished = alreadyFinished + 1;
-			if (totalFinished >= totalParticipants) {
+			// Encerra a corrida quando não sobrar mais ninguém "racing" —
+			// seja porque terminou, seja porque desistiu.
+			const stillRacing = await participantRepository
+				.createQueryBuilder('rp')
+				.where('rp.race_id = :race_id', { race_id })
+				.andWhere("rp.status = 'racing'")
+				.getCount();
+
+			if (stillRacing === 0) {
 				race.status = 'finished';
 				await raceRepository.save(race);
 			}

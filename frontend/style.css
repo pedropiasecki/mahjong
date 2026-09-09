@@ -824,3 +824,66 @@ body.compact .board-frame {
     color: #f87171;
     text-decoration: underline;
 }
+
+/* ---------- indicador de modo corrida ---------- */
+.race-mode-badge {
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    background: var(--accent-soft);
+    border: 1px solid rgba(217, 164, 65, .4);
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.abandon-race-button {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, .3);
+}
+
+.abandon-race-button:hover {
+    background: rgba(248, 113, 113, .12);
+    border-color: rgba(248, 113, 113, .5);
+}
+
+/* ---------- contador regressivo de início da corrida ---------- */
+.race-countdown-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 7, 12, .45);
+    backdrop-filter: blur(2px);
+}
+
+.race-countdown-overlay[hidden] {
+    display: none !important;
+}
+
+.race-countdown-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.race-countdown-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.race-countdown-number {
+    font-size: 96px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 8px 30px rgba(0, 0, 0, .6);
+    font-variant-numeric: tabular-nums;
+}

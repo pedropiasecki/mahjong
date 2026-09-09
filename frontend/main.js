@@ -1,6 +1,7 @@
 import { Game } from '../engine/game.js';
 import { MODE_SOLVABLE } from '../engine/builder.js';
 import { GAME_MODE_EASY, GAME_MODE_EXPERT, GAME_MODE_ID_DEFAULT, RESCUE_SHUFFLE_ATTEMPTS } from '../engine/consts.js';
+import { seedRNG } from '../engine/rng.js';
 import { generateRandomMapping } from '../engine/random-layout/random-layout.js';
 import { KyodaiTileSets, buildKyodaiSVG } from '../engine/tilesets.js';
 
@@ -65,6 +66,15 @@ let previousStoneCount = 144;
 // embaralhar, ou travou de vez) só é reportada ao backend UMA vez, mesmo
 // que o tabuleiro trave várias vezes seguidas — evita inflar games_played.
 let matchLossReported = false;
+// Preenchido só quando a página abre com ?race=<id> e a corrida é válida
+// pra esse usuário jogar agora. null = partida solo normal.
+let raceContext = null;
+// Quantas vezes o bônus "3 pares em 10s" disparou nessa partida — só
+// importa (e só é reportado) em modo corrida.
+let raceBonusCount = 0;
+// true só durante o replay de uma corrida retomada (ver replaySavedRaceProgress)
+// — evita que os cliques do replay sejam contados como combo de verdade.
+let isReplayingRace = false;
 let toastTimer;
 let resizeFrame;
 let lastFocusedKey;
@@ -126,6 +136,7 @@ function startNewGame(map = currentMap, difficulty = currentDifficulty) {
 	previousStoneCount = game.board.count();
 	matchTimestamps = [];
 	matchLossReported = false;
+	raceBonusCount = 0;
 	updatePauseLabel();
 	render();
 }
@@ -258,7 +269,7 @@ function showToast(message) {
 
 function checkForMatch() {
 	const currentStoneCount = game.board.count();
-	if (currentStoneCount === previousStoneCount - 2) {
+	if (currentStoneCount === previousStoneCount - 2 && !isReplayingRace) {
 		const now = Date.now();
 		matchTimestamps.push(now);
 		matchTimestamps = matchTimestamps.filter(t => now - t <= COMBO_WINDOW_MS);
@@ -269,6 +280,7 @@ function checkForMatch() {
 			document.querySelector('.stats')?.appendChild(combo);
 			setTimeout(() => combo.remove(), 850);
 			matchTimestamps = [];
+			raceBonusCount += 1;
 		}
 	}
 	previousStoneCount = currentStoneCount;
@@ -279,14 +291,52 @@ game.click = stone => {
 	const result = originalClick(stone);
 	checkForMatch();
 	game.save();
+	if (raceContext && !isReplayingRace) saveRaceProgress();
 	return result;
 };
 
 const API_BASE_URL = window.MAHJONG_API_URL || 'http://localhost:3333';
 
+// Helper genérico pra chamadas autenticadas (usado pelas rotas de corrida).
+// reportGameSession abaixo tem sua própria versão simplificada porque não
+// precisa tratar erro de resposta com detalhe — aqui sim, porque erros de
+// corrida (ex.: "já terminou") precisam aparecer pro jogador.
+async function raceApiRequest(path, options = {}) {
+	const token = localStorage.getItem('mahjong:token');
+	let response;
+	try {
+		response = await fetch(`${API_BASE_URL}${path}`, {
+			...options,
+			headers: {
+				Authorization: `Bearer ${token}`,
+				...(options.headers || {}),
+			},
+		});
+	} catch (networkError) {
+		throw new Error(`Não foi possível conectar ao servidor em ${API_BASE_URL}.`);
+	}
+
+	let data = null;
+	try {
+		data = await response.json();
+	} catch {
+		// sem corpo
+	}
+
+	if (!response.ok) {
+		throw new Error((data && data.message) || `Erro inesperado (${response.status}).`);
+	}
+
+	return data;
+}
+
 // Envia o resultado da partida pro backend (POST /games), que já atualiza
 // games_played/wins/losses/best_time_seconds do profile na mesma transação.
 // Nunca deixa uma falha de rede/backend quebrar o jogo — só loga um aviso.
+// NÃO é usada em modo corrida — lá o resultado vai pra /races/:id/finish ou
+// /races/:id/abandon (ver handleRaceGameOver), que já registram o
+// GameSession correspondente no servidor. Chamar as duas contaria a mesma
+// partida duas vezes nas estatísticas.
 async function reportGameSession(result, elapsedMs, movesCount) {
 	const token = localStorage.getItem('mahjong:token');
 	if (!token) return; // index.html já exige login antes de chegar aqui, mas por segurança
@@ -327,20 +377,36 @@ const gameOverTitleEl = document.querySelector('#game-over-title');
 const gameOverMessageEl = document.querySelector('#game-over-message');
 const gameOverStatsEl = document.querySelector('#game-over-stats');
 
-function showGameOverModal(kind, { elapsedMs, movesCount, isRecord }) {
+function showGameOverModal(kind, { elapsedMs, movesCount, isRecord, racePlacement }) {
 	gameOverModalEl.classList.remove('is-won', 'is-lost');
 	gameOverModalEl.classList.add(kind === 'won' ? 'is-won' : 'is-lost');
+	const replayButton = document.querySelector('#game-over-replay');
 
-	if (kind === 'won') {
+	if (raceContext) {
+		if (kind === 'won') {
+			gameOverIconEl.textContent = racePlacement === 1 ? '🥇' : '🏁';
+			gameOverTitleEl.textContent = racePlacement
+				? `Você terminou em ${racePlacement}º lugar!`
+				: 'Você terminou a corrida!';
+			gameOverMessageEl.textContent = 'Volte pra sala da corrida pra ver o placar completo dos outros jogadores.';
+		} else {
+			gameOverIconEl.textContent = '🚪';
+			gameOverTitleEl.textContent = 'Corrida encerrada pra você';
+			gameOverMessageEl.textContent = 'O tabuleiro travou — isso contou como desistência dessa corrida.';
+		}
+		replayButton.textContent = 'Ver placar da corrida';
+	} else if (kind === 'won') {
 		gameOverIconEl.textContent = isRecord ? '🏆' : '🎉';
 		gameOverTitleEl.textContent = isRecord ? 'Novo recorde!' : 'Vitória!';
 		gameOverMessageEl.textContent = isRecord
 			? 'Você zerou o tabuleiro e bateu seu melhor tempo nesse mapa.'
 			: 'Você encontrou todos os pares e zerou o tabuleiro.';
+		replayButton.textContent = 'Jogar novamente';
 	} else {
 		gameOverIconEl.textContent = '😕';
 		gameOverTitleEl.textContent = 'Sem mais jogadas';
 		gameOverMessageEl.textContent = 'As peças que restaram não formam nenhum par possível — o tabuleiro travou. Da próxima vez, "Desfazer" ou "Dica" no menu Jogo podem evitar isso.';
+		replayButton.textContent = 'Jogar novamente';
 	}
 
 	gameOverStatsEl.innerHTML = `
@@ -349,7 +415,7 @@ function showGameOverModal(kind, { elapsedMs, movesCount, isRecord }) {
 	`;
 
 	gameOverModalEl.hidden = false;
-	document.querySelector('#game-over-replay')?.focus();
+	replayButton.focus();
 }
 
 function hideGameOverModal() {
@@ -360,6 +426,10 @@ function bindGameOverModal() {
 	document.querySelector('#game-over-close').addEventListener('click', hideGameOverModal);
 	document.querySelector('#game-over-replay').addEventListener('click', () => {
 		hideGameOverModal();
+		if (raceContext) {
+			window.location.href = 'html/races.html';
+			return;
+		}
 		startNewGame(currentMap, currentDifficulty);
 		showToast('Novo tabuleiro criado.');
 	});
@@ -390,18 +460,65 @@ game.gameOver = (message, playTime) => {
 
 	// Só reporta/mostra partidas com pelo menos uma jogada — evita logar
 	// "partidas" vazias de quem só ficou trocando de mapa sem chegar a jogar.
-	if (movesCount > 0) {
-		const shouldReport = result !== 'lost' || !matchLossReported;
-		if (shouldReport) {
-			reportGameSession(result, elapsedMs, movesCount);
-			if (result === 'lost') matchLossReported = true;
-		}
+	if (movesCount === 0) return;
 
-		if (result === 'won' || result === 'lost') {
-			showGameOverModal(result, { elapsedMs, movesCount, isRecord: message === 'MSG_BEST' });
-		}
+	if (raceContext) {
+		handleRaceGameOver(result, elapsedMs, movesCount);
+		return;
+	}
+
+	const shouldReport = result !== 'lost' || !matchLossReported;
+	if (shouldReport) {
+		reportGameSession(result, elapsedMs, movesCount);
+		if (result === 'lost') matchLossReported = true;
+	}
+
+	if (result === 'won' || result === 'lost') {
+		showGameOverModal(result, { elapsedMs, movesCount, isRecord: message === 'MSG_BEST' });
 	}
 };
+
+// Em modo corrida não existe "derrota" isolada — só "terminou" (com
+// colocação) ou "desistiu" (travou e não quis/conseguiu embaralhar, ou
+// trocou de tabuleiro no meio). Cada caminho fala com o endpoint certo.
+async function handleRaceGameOver(result, elapsedMs, movesCount) {
+	if (result === 'won') {
+		try {
+			const participant = await raceApiRequest(`/races/${raceContext.id}/finish`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					duration_seconds: Math.max(0, Math.round(elapsedMs / 1000)),
+					moves_count: movesCount,
+					bonus_points: raceBonusCount,
+				}),
+			});
+			showGameOverModal('won', { elapsedMs, movesCount, racePlacement: participant.placement });
+		} catch (err) {
+			console.warn('Não foi possível registrar o resultado da corrida.', err);
+			showGameOverModal('won', { elapsedMs, movesCount });
+		}
+		clearRaceProgress(raceContext.id);
+		return;
+	}
+
+	// 'lost' (travou de vez) ou 'abandoned' (trocou de tabuleiro) em modo
+	// corrida são a mesma coisa pro backend: você saiu sem terminar.
+	try {
+		await raceApiRequest(`/races/${raceContext.id}/abandon`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ moves_count: movesCount }),
+		});
+	} catch (err) {
+		console.warn('Não foi possível registrar a desistência da corrida.', err);
+	}
+	clearRaceProgress(raceContext.id);
+
+	if (result === 'lost') {
+		showGameOverModal('lost', { elapsedMs, movesCount });
+	}
+}
 
 // ---------------------------------------------------------------------
 // Tabuleiro travado (sem jogadas possíveis)
@@ -462,12 +579,18 @@ function bindStuckModal() {
 		const { elapsedMs, movesCount } = stuckSnapshot;
 		hideStuckModal();
 
-		// Conta como derrota só na primeira vez que a partida trava — se
-		// travar de novo mais adiante na mesma partida, não conta de novo.
-		const isFirstLossThisMatch = !matchLossReported;
-		if (isFirstLossThisMatch) {
-			reportGameSession('lost', elapsedMs, movesCount);
-			matchLossReported = true;
+		// Em modo corrida não existe "derrota" pra reportar aqui — só ao
+		// terminar (finish) ou desistir de vez (abandon, tratado abaixo se
+		// nem embaralhar resolver). Continuar tentando não é reportado.
+		let isFirstLossThisMatch = false;
+		if (!raceContext) {
+			// Conta como derrota só na primeira vez que a partida trava — se
+			// travar de novo mais adiante na mesma partida, não conta de novo.
+			isFirstLossThisMatch = !matchLossReported;
+			if (isFirstLossThisMatch) {
+				reportGameSession('lost', elapsedMs, movesCount);
+				matchLossReported = true;
+			}
 		}
 
 		let rescued = false;
@@ -482,17 +605,23 @@ function bindStuckModal() {
 
 		if (rescued) {
 			showToast(
-				isFirstLossThisMatch
-					? 'Peças embaralhadas — a derrota já foi registrada, mas dá pra continuar.'
-					: 'Peças embaralhadas — essa partida já contava como derrota, dá pra continuar.'
+				raceContext
+					? 'Peças embaralhadas — continue correndo!'
+					: isFirstLossThisMatch
+						? 'Peças embaralhadas — a derrota já foi registrada, mas dá pra continuar.'
+						: 'Peças embaralhadas — essa partida já contava como derrota, dá pra continuar.'
 			);
 		} else {
 			// Nem embaralhar resolveu (raro) — a partida realmente acabou.
-			// A derrota já foi reportada (agora ou antes), então finalizamos
-			// sem reportar de novo (usamos o gameOver ORIGINAL, não o
-			// interceptado).
+			// originalGameOver (a versão CRUA, sem o patch) só cuida do
+			// estado interno do engine — por isso em modo corrida a
+			// desistência precisa ser reportada manualmente aqui.
 			originalGameOver('MSG_FAIL');
-			showGameOverModal('lost', { elapsedMs, movesCount, isRecord: false });
+			if (raceContext) {
+				handleRaceGameOver('lost', elapsedMs, movesCount);
+			} else {
+				showGameOverModal('lost', { elapsedMs, movesCount, isRecord: false });
+			}
 		}
 	});
 
@@ -736,6 +865,226 @@ function bindBoardNavigation() {
 	});
 }
 
+// -----------------------------------------------------------------------
+// Modo corrida — ativado quando a página abre com ?race=<id> na URL
+// (link vindo de html/races.html, botão "Jogar agora").
+// -----------------------------------------------------------------------
+
+function getRaceIdFromUrl() {
+	const params = new URLSearchParams(window.location.search);
+	return params.get('race');
+}
+
+const RACE_COUNTDOWN_MS = 5000;
+
+function raceProgressKey(raceId) {
+	return `mahjong:race:${raceId}:progress`;
+}
+
+// Cada jogada em modo corrida salva o histórico de pares casados (não o
+// tabuleiro inteiro) — como o tabuleiro é gerado de forma determinística a
+// partir da seed, basta refazer os mesmos cliques, na mesma ordem, pra
+// reconstruir exatamente o mesmo estado depois de um F5.
+function saveRaceProgress() {
+	if (!raceContext) return;
+	localStorage.setItem(raceProgressKey(raceContext.id), JSON.stringify({
+		undo: game.board.undo(),
+		bonusCount: raceBonusCount,
+	}));
+}
+
+function loadRaceProgress(raceId) {
+	try {
+		const raw = localStorage.getItem(raceProgressKey(raceId));
+		return raw ? JSON.parse(raw) : null;
+	} catch {
+		return null;
+	}
+}
+
+function clearRaceProgress(raceId) {
+	localStorage.removeItem(raceProgressKey(raceId));
+}
+
+// Refaz os cliques salvos contra o tabuleiro recém-gerado (idêntico ao de
+// antes do reload, mesma seed). isReplayingRace evita que isso dispare
+// combo/som como se fossem jogadas novas.
+function replaySavedRaceProgress(progress) {
+	isReplayingRace = true;
+	const pairs = progress.undo ?? [];
+	for (let i = 0; i < pairs.length; i += 1) {
+		const [z, x, y] = pairs[i];
+		const stone = game.board.stones().find(s => s.x === x && s.y === y && s.z === z && !s.picked());
+		if (stone) game.click(stone);
+	}
+	isReplayingRace = false;
+	matchTimestamps = [];
+	raceBonusCount = progress.bonusCount ?? 0;
+	// O replay pode ter iniciado o relógio de verdade (click() liga o
+	// cronômetro na primeira jogada) — para ele agora; o tempo correto vem
+	// do horário oficial de início da corrida, calculado logo em seguida.
+	game.clock.pause();
+}
+
+// Mostra "5, 4, 3, 2, 1, Vai!" cobrindo a tela (o tabuleiro fica visível,
+// só não é clicável) até o horário oficial de início chegar. msRemaining
+// vem de raceContext.playStartsAt, então é o MESMO instante pra todo mundo
+// na corrida, veio de quando entrou na tela ou não.
+function showRaceCountdown(msRemaining, onDone) {
+	const overlay = document.querySelector('#race-countdown-overlay');
+	const numberEl = document.querySelector('#race-countdown-number');
+	overlay.hidden = false;
+
+	const timer = window.setInterval(() => {
+		msRemaining -= 200;
+		const secondsLeft = Math.max(0, Math.ceil(msRemaining / 1000));
+		numberEl.textContent = secondsLeft > 0 ? String(secondsLeft) : 'Vai!';
+
+		if (msRemaining <= -400) {
+			window.clearInterval(timer);
+			overlay.hidden = true;
+			onDone();
+		}
+	}, 200);
+
+	numberEl.textContent = String(Math.max(1, Math.ceil(msRemaining / 1000)));
+}
+
+// Roda depois que o tabuleiro da corrida já foi gerado (startNewGame já
+// aconteceu). Retoma progresso salvo se houver, e sincroniza o cronômetro
+// com o horário oficial de início — com ou sem contador, dependendo de
+// quanto tempo já passou.
+function setupRaceCountdownAndResume() {
+	const progress = loadRaceProgress(raceContext.id);
+	if (progress) {
+		replaySavedRaceProgress(progress);
+		render();
+	}
+
+	const syncClockAndRun = () => {
+		game.clock.elapsed.set(Math.max(0, Date.now() - raceContext.playStartsAt));
+		game.clock.run();
+	};
+
+	const msRemaining = raceContext.playStartsAt - Date.now();
+	if (msRemaining > 0) {
+		game.clock.elapsed.set(0);
+		showRaceCountdown(msRemaining, syncClockAndRun);
+	} else {
+		syncClockAndRun();
+	}
+}
+
+function lockControlsForRace() {
+	// Numa corrida o mapa é fixo (definido pela seed compartilhada) —
+	// trocar de mapa, dificuldade ou começar um jogo novo abandonaria a
+	// corrida sem avisar, então trava esses controles em vez disso.
+	document.querySelectorAll('[data-action="new"]').forEach(btn => {
+		btn.disabled = true;
+		btn.title = 'Não disponível durante uma corrida';
+	});
+	document.querySelectorAll('#map-menu [data-map]').forEach(btn => {
+		btn.disabled = true;
+		btn.title = 'O mapa é fixo durante uma corrida';
+	});
+	const difficultySelect = document.querySelector('#difficulty');
+	if (difficultySelect) {
+		difficultySelect.disabled = true;
+		difficultySelect.title = 'Não disponível durante uma corrida';
+	}
+}
+
+function bindRaceMode() {
+	document.querySelector('#abandon-race-in-game-button').addEventListener('click', async () => {
+		if (!raceContext) return;
+		const confirmed = window.confirm(
+			'Tem certeza que quer desistir dessa corrida? Você sai da disputa e não recebe colocação.'
+		);
+		if (!confirmed) return;
+
+		const movesCount = Math.floor(game.board.undo().length / 2);
+		try {
+			await raceApiRequest(`/races/${raceContext.id}/abandon`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ moves_count: movesCount }),
+			});
+		} catch (err) {
+			console.warn('Não foi possível registrar a desistência.', err);
+		}
+		clearRaceProgress(raceContext.id);
+		window.location.href = 'html/races.html';
+	});
+}
+
+// Valida a corrida da URL e prepara o modo corrida ANTES do tabuleiro ser
+// gerado (a ordem importa: seedRNG precisa rodar antes de startNewGame()).
+// Retorna false se redirecionou pra outro lugar (corrida inválida, ainda
+// não começou, já terminou, ou o usuário não faz parte dela) — nesse caso
+// quem chamou não deve continuar iniciando um jogo normal por engano.
+async function setupRaceMode() {
+	const raceId = getRaceIdFromUrl();
+	if (!raceId) return true;
+
+	const storedUser = JSON.parse(localStorage.getItem('mahjong:user') || 'null');
+
+	try {
+		const race = await raceApiRequest(`/races/${raceId}`);
+		const myParticipant = storedUser && race.participants.find(p => p.user_id === storedUser.id);
+
+		if (!myParticipant) {
+			showToast('Você não faz parte dessa corrida.');
+			window.location.href = 'html/races.html';
+			return false;
+		}
+		if (myParticipant.status !== 'racing') {
+			showToast('Você já terminou ou desistiu dessa corrida.');
+			window.location.href = 'html/races.html';
+			return false;
+		}
+		if (race.status === 'waiting') {
+			showToast('Essa corrida ainda não começou.');
+			window.location.href = 'html/races.html';
+			return false;
+		}
+		if (race.status === 'finished') {
+			showToast('Essa corrida já terminou.');
+			window.location.href = 'html/races.html';
+			return false;
+		}
+
+		raceContext = {
+			id: race.id,
+			seed: race.seed,
+			map_layout: race.map_layout,
+			// Âncora do início "de verdade" da corrida: 5s depois do horário
+			// em que o CRIADOR clicou em "Iniciar corrida" no servidor — não
+			// de quando ESTE jogador carregou a tela. Isso garante que o
+			// contador regressivo e o cronômetro fiquem sincronizados entre
+			// todos os participantes, mesmo que cada um entre em momentos
+			// diferentes (e sobrevive a um F5 sem perder a sincronia).
+			playStartsAt: new Date(race.started_at).getTime() + RACE_COUNTDOWN_MS,
+		};
+
+		// A seed precisa ser aplicada ANTES de qualquer geração de tabuleiro
+		// — é isso que garante que todo mundo na corrida recebe exatamente
+		// o mesmo mapa (ver engine/array-utilities.js).
+		seedRNG(raceContext.seed);
+		currentMap = raceContext.map_layout;
+
+		document.querySelector('#race-mode-badge').hidden = false;
+		document.querySelector('#abandon-race-in-game-button').hidden = false;
+		lockControlsForRace();
+
+		return true;
+	} catch (err) {
+		console.warn('Não foi possível entrar na corrida:', err);
+		showToast('Não foi possível entrar nessa corrida.');
+		window.location.href = 'html/races.html';
+		return false;
+	}
+}
+
 async function init() {
 	try {
 		await loadTileset(currentTileset);
@@ -754,8 +1103,14 @@ async function init() {
 	bindDifficulty();
 	bindGameOverModal();
 	bindStuckModal();
+	bindRaceMode();
 	window.addEventListener('resize', requestBoardRender);
+
+	const shouldStartNormally = await setupRaceMode();
+	if (!shouldStartNormally) return;
+
 	startNewGame();
+	if (raceContext) setupRaceCountdownAndResume();
 	setInterval(updateHUD, 250);
 }
 

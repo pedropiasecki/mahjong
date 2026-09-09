@@ -10,9 +10,16 @@ import {
 import { User } from '@modules/users/typeorm/entities/User';
 import { Race } from './Race';
 
+// 'racing'    = ainda participando (jogando ou esperando a corrida começar)
+// 'finished'  = terminou o tabuleiro (tem placement)
+// 'abandoned' = desistiu antes de terminar (nunca tem placement)
+export type RaceParticipantStatus = 'racing' | 'finished' | 'abandoned';
+
 // Um jogador só pode entrar em uma corrida uma vez (ver @Unique abaixo).
-// finished_at/duration_seconds/moves_count/placement ficam null até o
-// jogador terminar essa partida específica.
+// finished_at é preenchido tanto ao terminar quanto ao desistir — marca
+// quando a participação dessa pessoa nessa corrida acabou, por qualquer
+// motivo. duration_seconds/moves_count/placement só existem de verdade
+// quando status='finished'.
 @Entity('race_participants')
 @Unique('UQ_race_participant', ['race_id', 'user_id'])
 export class RaceParticipant {
@@ -24,6 +31,9 @@ export class RaceParticipant {
 
 	@Column()
 	user_id: string;
+
+	@Column({ type: 'varchar', default: 'racing' })
+	status: RaceParticipantStatus;
 
 	@Column({ type: 'int', nullable: true })
 	duration_seconds: number | null;
@@ -37,7 +47,8 @@ export class RaceParticipant {
 	@Column({ type: 'int', default: 0 })
 	bonus_points: number;
 
-	// 1 = primeiro a terminar, 2 = segundo, etc. Null enquanto não termina.
+	// 1 = primeiro a terminar, 2 = segundo, etc. Null enquanto não termina
+	// (e sempre null pra quem desistiu).
 	@Column({ type: 'int', nullable: true })
 	placement: number | null;
 

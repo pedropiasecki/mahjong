@@ -49,7 +49,13 @@ export default class CreateGameSessionService {
 			// (ver CreateProfileService); se por algum motivo não existir,
 			// a partida ainda fica salva no histórico — só o cache que não
 			// é atualizado agora.
-			if (profile) {
+			//
+			// 'abandoned' NÃO mexe em nada aqui — nem games_played, nem
+			// wins/losses. Desistir (trocar de mapa no meio, ou sair de uma
+			// corrida) não é uma "partida jogada" pras estatísticas; ela
+			// ainda fica registrada em game_sessions pro histórico, só não
+			// conta pro perfil.
+			if (profile && result !== 'abandoned') {
 				profile.games_played += 1;
 
 				if (result === 'won') {
@@ -64,8 +70,6 @@ export default class CreateGameSessionService {
 				} else if (result === 'lost') {
 					profile.losses += 1;
 				}
-				// 'abandoned' só soma em games_played — o jogador desistiu, não
-				// necessariamente "perdeu" a partida.
 
 				await profileRepository.save(profile);
 			}

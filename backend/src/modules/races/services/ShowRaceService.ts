@@ -3,7 +3,7 @@ import { AppDataSource } from '@shared/typeorm/data-source';
 import AppError from '@shared/errors/AppError';
 import { Profile } from '@modules/profiles/typeorm/entities/Profile';
 import { Race } from '../typeorm/entities/Race';
-import { RaceParticipant } from '../typeorm/entities/RaceParticipant';
+import { RaceParticipant, RaceParticipantStatus } from '../typeorm/entities/RaceParticipant';
 
 interface IRequest {
 	race_id: string;
@@ -13,7 +13,7 @@ export interface RaceParticipantView {
 	user_id: string;
 	display_name: string | null;
 	avatar_url: string | null;
-	status: 'racing' | 'finished';
+	status: RaceParticipantStatus;
 	duration_seconds: number | null;
 	moves_count: number | null;
 	bonus_points: number;
@@ -70,7 +70,7 @@ export default class ShowRaceService {
 					user_id: participant.user_id,
 					display_name: profile?.display_name ?? null,
 					avatar_url: profile?.avatar_url ?? null,
-					status: participant.finished_at ? 'finished' : 'racing',
+					status: participant.status,
 					duration_seconds: participant.duration_seconds,
 					moves_count: participant.moves_count,
 					bonus_points: participant.bonus_points,

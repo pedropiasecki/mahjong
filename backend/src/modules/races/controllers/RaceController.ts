@@ -5,6 +5,7 @@ import StartRaceService from '../services/StartRaceService';
 import FinishRaceService from '../services/FinishRaceService';
 import ShowRaceService from '../services/ShowRaceService';
 import ListRacesService, { RaceListItem } from '../services/ListRacesService';
+import AbandonRaceService from '../services/AbandonRaceService';
 
 export default class RaceController {
 	// POST /races
@@ -72,6 +73,21 @@ export default class RaceController {
 			duration_seconds,
 			moves_count,
 			...(bonus_points !== undefined ? { bonus_points } : {}),
+		});
+
+		return response.json(participant);
+	}
+
+	// POST /races/:id/abandon
+	public async abandon(request: Request, response: Response): Promise<Response> {
+		const { id } = request.params;
+		const { moves_count } = request.body;
+
+		const abandonRace = new AbandonRaceService();
+		const participant = await abandonRace.execute({
+			race_id: id as string,
+			user_id: request.user.id,
+			...(moves_count !== undefined ? { moves_count } : {}),
 		});
 
 		return response.json(participant);

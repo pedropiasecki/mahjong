@@ -115,4 +115,24 @@ raceRouter.post(
 	},
 );
 
+raceRouter.post(
+	'/:id/abandon',
+	isAuthenticated,
+	celebrate({
+		[Segments.PARAMS]: {
+			id: Joi.string().uuid().required(),
+		},
+		[Segments.BODY]: {
+			moves_count: Joi.number().integer().min(0).optional(),
+		},
+	}),
+	async (req, res, next) => {
+		try {
+			await controller.abandon(req, res);
+		} catch (err) {
+			next(err);
+		}
+	},
+);
+
 export default raceRouter;
